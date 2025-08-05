@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: dragon-mill-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: dragon_mill_pos
+      MYSQL_USER: dragon_mill
+      MYSQL_PASSWORD: dragon_mill_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - dragon-mill-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: dragon-mill-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - dragon-mill-network
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: dragon-mill-server
+    restart: always
+    depends_on:
+      - mysql
+      - redis
+    environment:
+      NODE_ENV: production
+      DB_HOST: mysql
+      REDIS_HOST: redis
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./server/uploads:/app/uploads
+      - ./server/logs:/app/logs
+    networks:
+      - dragon-mill-network
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: dragon-mill-client
+    restart: always
+    depends_on:
+      - server
+    ports:
+      - "80:80"
+    networks:
+      - dragon-mill-network
+
+volumes:
+  mysql_data:
+  redis_data:
+
+networks:
+  dragon-mill-network:
+    driver: bridge

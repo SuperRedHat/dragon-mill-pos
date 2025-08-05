@@ -1,0 +1,42 @@
+{
+  "name": "dragon-mill-pos-client",
+  "version": "1.0.0",
+  "description": "神龙磨坊收银管理系统前端",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.20.1",
+    "antd": "^5.12.5",
+    "axios": "^1.6.2",
+    "dayjs": "^1.11.10",
+    "echarts": "^5.4.3",
+    "echarts-for-react": "^3.0.2",
+    "@ant-design/icons": "^5.2.6",
+    "ahooks": "^3.7.8",
+    "immer": "^10.0.3",
+    "lodash-es": "^4.17.21",
+    "pinyin-pro": "^3.18.4",
+    "react-to-print": "^2.14.15",
+    "qrcode": "^1.5.3",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@vitejs/plugin-react": "^4.2.1",
+    "eslint": "^8.55.0",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.5",
+    "vite": "^5.0.8",
+    "sass": "^1.69.5",
+    "@types/lodash-es": "^4.17.12"
+  }
+}
