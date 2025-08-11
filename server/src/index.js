@@ -8,6 +8,7 @@ import { rateLimit } from 'express-rate-limit';
 import { logger } from './utils/logger.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { sequelize } from './config/database.js';
+import { connectRedis } from './config/redis.js';
 import routes from './routes/index.js';
 
 const app = express();
@@ -68,6 +69,9 @@ const startServer = async () => {
       await sequelize.sync({ alter: true });
       logger.info('数据库模型同步完成');
     }
+
+    // 连接 Redis（可选）
+    await connectRedis();
 
     // 启动服务器
     app.listen(PORT, () => {
