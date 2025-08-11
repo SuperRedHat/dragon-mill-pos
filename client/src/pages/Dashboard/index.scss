@@ -1,0 +1,83 @@
+.dashboard {
+  .ant-card {
+    margin-bottom: 0;
+    
+    .ant-card-head {
+      border-bottom: 1px solid #f0f0f0;
+    }
+  }
+
+  .staff-performance {
+    .staff-item {
+      margin-bottom: 16px;
+      
+      &:last-child {
+        margin-bottom: 0;
+      }
+      
+      span {
+        display: inline-block;
+        margin-bottom: 4px;
+        
+        &:first-child {
+          font-weight: 500;
+        }
+        
+        &:nth-child(2) {
+          float: right;
+          color: #1890ff;
+        }
+      }
+    }
+  }
+
+  .inventory-alert {
+    .alert-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid #f0f0f0;
+      
+      &:last-child {
+        border-bottom: none;
+      }
+      
+      .product {
+        font-weight: 500;
+      }
+      
+      .stock {
+        font-size: 12px;
+        padding: 2px 8px;
+        border-radius: 4px;
+        
+        &.danger {
+          color: #ff4d4f;
+          background: #fff1f0;
+        }
+        
+        &.warning {
+          color: #faad14;
+          background: #fffbe6;
+        }
+      }
+    }
+  }
+
+  .todo-list {
+    .todo-item {
+      display: flex;
+      align-items: center;
+      padding: 8px 0;
+      
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #1890ff;
+        margin-right: 12px;
+      }
+    }
+  }
+}

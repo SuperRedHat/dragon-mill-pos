@@ -3,10 +3,12 @@
   "version": "1.0.0",
   "description": "神龙磨坊收银管理系统",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
-    "server:dev": "cd server && npm run dev",
-    "client:dev": "cd client && npm run dev",
+    "dev": "node scripts/dev.mjs",
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "dev:old": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
     "install:all": "npm install && cd server && npm install && cd ../client && npm install",
     "build": "cd client && npm run build",
     "start": "cd server && npm start"

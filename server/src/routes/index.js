@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import authRoutes from './auth.js';
 
 const router = Router();
 
@@ -11,15 +12,16 @@ router.get('/', (req, res) => {
   });
 });
 
+// 认证路由
+router.use('/auth', authRoutes);
+
 // TODO: 后续在这里导入其他路由模块
-// import authRoutes from './auth.js';
 // import userRoutes from './user.js';
 // import productRoutes from './product.js';
 // import orderRoutes from './order.js';
 // import memberRoutes from './member.js';
 // import reportRoutes from './report.js';
 
-// router.use('/auth', authRoutes);
 // router.use('/users', userRoutes);
 // router.use('/products', productRoutes);
 // router.use('/orders', orderRoutes);
