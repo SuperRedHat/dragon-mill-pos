@@ -17,7 +17,11 @@ const User = sequelize.define('User', {
   password: {
     type: DataTypes.STRING(255),
     allowNull: false,
-    comment: '密码（加密）'
+    comment: '密码（加密）',
+    set(value) {
+      // 密码会在 hooks 中加密，这里只设置原始值
+      this.setDataValue('password', value);
+    }
   },
   name: {
     type: DataTypes.STRING(50),
@@ -27,6 +31,17 @@ const User = sequelize.define('User', {
   phone: {
     type: DataTypes.STRING(20),
     comment: '手机号'
+  },
+  email: {
+    type: DataTypes.STRING(100),
+    comment: '邮箱',
+    validate: {
+      isEmail: true
+    }
+  },
+  avatar: {
+    type: DataTypes.STRING(255),
+    comment: '头像URL'
   },
   role: {
     type: DataTypes.ENUM('admin', 'staff'),
@@ -51,16 +66,19 @@ const User = sequelize.define('User', {
 }, {
   tableName: 'users',
   timestamps: true,
-  paranoid: true,
+  underscored: true,
+  paranoid: false,
   hooks: {
     beforeCreate: async (user) => {
-      if (user.password) {
-        user.password = await bcrypt.hash(user.password, 10);
+      if (user.password && !user.password.startsWith('$2a$')) {
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(user.password, salt);
       }
     },
     beforeUpdate: async (user) => {
-      if (user.changed('password')) {
-        user.password = await bcrypt.hash(user.password, 10);
+      if (user.changed('password') && !user.password.startsWith('$2a$')) {
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(user.password, salt);
       }
     }
   }

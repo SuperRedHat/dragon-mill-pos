@@ -22,6 +22,16 @@ const sequelize = new Sequelize({
     freezeTableName: true,
     charset: 'utf8mb4',
     collate: 'utf8mb4_unicode_ci'
+  },
+  dialectOptions: {
+    dateStrings: true,
+    typeCast: function (field, next) {
+      // for reading from database
+      if (field.type === 'DATETIME') {
+        return field.string();
+      }
+      return next();
+    }
   }
 });
 

@@ -9,6 +9,8 @@ import MainLayout from '@/layouts/MainLayout';
 // 懒加载页面组件
 const Login = lazy(() => import('@/pages/Login'));
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
+const UserManagement = lazy(() => import('@/pages/Settings/Users'));
+const Profile = lazy(() => import('@/pages/Profile'));
 
 // 全局加载组件
 const PageLoading = () => (
@@ -134,13 +136,13 @@ const Router = () => {
           
           {/* 系统设置 */}
           <Route path="settings">
-            <Route path="users" element={<ComingSoon title="用户管理" />} />
+            <Route path="users" element={<UserManagement />} />
             <Route path="shop" element={<ComingSoon title="店铺设置" />} />
             <Route path="system" element={<ComingSoon title="系统配置" />} />
           </Route>
           
           {/* 个人中心 */}
-          <Route path="profile" element={<ComingSoon title="个人信息" />} />
+          <Route path="profile" element={<Profile />} />
         </Route>
         
         {/* 404 页面 */}

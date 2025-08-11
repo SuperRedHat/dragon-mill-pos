@@ -4,12 +4,13 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
-import { rateLimit } from 'express-rate-limit';
+import rateLimit from 'express-rate-limit';
 import { logger } from './utils/logger.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { sequelize } from './config/database.js';
 import { connectRedis } from './config/redis.js';
 import routes from './routes/index.js';
+import testRoutes from './routes/test.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -23,19 +24,33 @@ app.use(cors({
 app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use(morgan('combined', { stream: { write: (message) => logger.info(message.trim()) } }));
+
+// 日志中间件
+if (process.env.NODE_ENV !== 'test') {
+  app.use(morgan('combined', { 
+    stream: { 
+      write: (message) => logger.info(message.trim()) 
+    } 
+  }));
+}
 
 // 限流配置
 const limiter = rateLimit({
   windowMs: parseInt(process.env.API_RATE_LIMIT_WINDOW || 15) * 60 * 1000,
   max: parseInt(process.env.API_RATE_LIMIT_MAX || 100),
   message: '请求过于频繁，请稍后再试',
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
+// 应用限流到 API 路由
 app.use('/api/', limiter);
 
 // 静态文件服务
 app.use('/uploads', express.static('uploads'));
+
+// 测试路由
+app.use('/api/test', testRoutes);
 
 // API 路由
 app.use('/api/v1', routes);
@@ -77,6 +92,8 @@ const startServer = async () => {
     app.listen(PORT, () => {
       logger.info(`服务器运行在端口 ${PORT}`);
       logger.info(`环境: ${process.env.NODE_ENV || 'development'}`);
+      logger.info(`测试路由: http://localhost:${PORT}/api/test/ping`);
+      logger.info(`API 路由: http://localhost:${PORT}/api/v1`);
     });
   } catch (error) {
     logger.error('服务器启动失败:', error);
@@ -89,6 +106,23 @@ process.on('SIGTERM', async () => {
   logger.info('收到 SIGTERM 信号，开始优雅关闭...');
   await sequelize.close();
   process.exit(0);
+});
+
+process.on('SIGINT', async () => {
+  logger.info('收到 SIGINT 信号，开始优雅关闭...');
+  await sequelize.close();
+  process.exit(0);
+});
+
+// 未捕获的异常处理
+process.on('uncaughtException', (error) => {
+  logger.error('未捕获的异常:', error);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('未处理的 Promise 拒绝:', reason);
+  process.exit(1);
 });
 
 startServer();
