@@ -40,6 +40,8 @@ import {
 import dayjs from 'dayjs';
 import { getProfile, updateProfile, changePassword, getLoginHistory, getOperationLogs } from '@/api/profile';
 import { getCurrentUser } from '@/api/auth';
+import { getAvatarUrl } from '@/utils/avatar'; 
+import eventBus, { EVENTS } from '@/utils/eventBus'; 
 import './index.scss';
 
 const { TabPane } = Tabs;
