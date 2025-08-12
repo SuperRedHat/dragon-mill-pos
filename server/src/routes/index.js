@@ -2,6 +2,8 @@ import express from 'express';
 import authRoutes from './auth.js';
 import userRoutes from './users.js';
 import profileRoutes from './profile.js';
+import productCategoryRoutes from './productCategories.js'; 
+import productRoutes from './products.js';
 
 const router = express.Router();
 
@@ -22,6 +24,12 @@ router.use('/users', userRoutes);
 
 // 个人信息路由
 router.use('/profile', profileRoutes);
+
+// 商品分类路由
+router.use('/product-categories', productCategoryRoutes);
+
+// 商品路由
+router.use('/products', productRoutes);
 
 // TODO: 后续在这里导入其他路由模块
 // import productRoutes from './product.js';

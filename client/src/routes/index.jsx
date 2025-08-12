@@ -11,6 +11,9 @@ const Login = lazy(() => import('@/pages/Login'));
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
 const UserManagement = lazy(() => import('@/pages/Settings/Users'));
 const Profile = lazy(() => import('@/pages/Profile'));
+const ProductCategories = lazy(() => import('@/pages/Products/Categories'));
+const ProductList = lazy(() => import('@/pages/Products/List'));
+const InventoryManagement = lazy(() => import('@/pages/Products/Inventory'));
 
 // 全局加载组件
 const PageLoading = () => (
@@ -115,9 +118,9 @@ const Router = () => {
           
           {/* 商品管理 */}
           <Route path="products">
-            <Route path="list" element={<ComingSoon title="商品列表" />} />
-            <Route path="categories" element={<ComingSoon title="商品分类" />} />
-            <Route path="inventory" element={<ComingSoon title="库存管理" />} />
+            <Route path="list" element={<ProductList />} />
+            <Route path="categories" element={<ProductCategories />} />
+            <Route path="inventory" element={<InventoryManagement />} />
           </Route>
           
           {/* 配方管理 */}

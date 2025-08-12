@@ -1,0 +1,53 @@
+.product-list {
+  .ant-card {
+    min-height: calc(100vh - 200px);
+  }
+
+  .ant-table {
+    .ant-table-cell {
+      font-size: 13px;
+    }
+  }
+
+  .ant-form-inline {
+    .ant-form-item {
+      margin-bottom: 16px;
+    }
+  }
+
+  .ant-upload-select-picture-card {
+    width: 100px;
+    height: 100px;
+  }
+
+  .ant-drawer {
+    .ant-timeline {
+      padding: 20px 0;
+      
+      .ant-timeline-item {
+        padding-bottom: 30px;
+        
+        &:last-child {
+          padding-bottom: 0;
+        }
+        
+        .ant-timeline-item-label {
+          width: 140px;
+          font-size: 12px;
+          color: #666;
+        }
+        
+        .ant-timeline-item-content {
+          p {
+            margin: 4px 0;
+            line-height: 1.6;
+            
+            &:first-child {
+              font-size: 14px;
+            }
+          }
+        }
+      }
+    }
+  }
+}

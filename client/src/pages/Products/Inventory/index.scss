@@ -1,0 +1,96 @@
+.inventory-management {
+  // 批量补货弹窗样式
+  .ant-modal {
+    .urgent-row {
+      background-color: #fff1f0;
+    }
+    
+    .warning-row {
+      background-color: #fffbe6;
+    }
+    
+    .ant-table-small {
+      .ant-table-cell {
+        padding: 6px 8px;
+      }
+    }
+    
+    .ant-statistic {
+      .ant-statistic-title {
+        font-size: 12px;
+      }
+      
+      .ant-statistic-content {
+        font-size: 20px;
+        
+        .ant-statistic-content-prefix {
+          font-size: 16px;
+        }
+      }
+    }
+  }
+
+  .ant-card {
+    margin-bottom: 16px;
+    
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+  
+  .ant-statistic-content {
+    font-size: 24px;
+  }
+  
+  .ant-table {
+    .stock-out-row {
+      background-color: #fff1f0;
+    }
+    
+    .stock-low-row {
+      background-color: #fffbe6;
+    }
+    
+    .ant-table-cell {
+      font-size: 13px;
+    }
+  }
+  
+  .ant-tabs-tab {
+    .ant-badge {
+      margin-left: 4px;
+      
+      .ant-badge-count {
+        height: 18px;
+        line-height: 18px;
+        min-width: 18px;
+        padding: 0 6px;
+        font-size: 12px;
+      }
+    }
+  }
+  
+  .ant-alert {
+    .anticon {
+      font-size: 16px;
+    }
+  }
+  
+  // 响应式设计
+  @media (max-width: 768px) {
+    .ant-form-inline {
+      .ant-form-item {
+        margin-right: 8px;
+        margin-bottom: 8px;
+      }
+    }
+    
+    .ant-statistic-title {
+      font-size: 12px;
+    }
+    
+    .ant-statistic-content {
+      font-size: 20px;
+    }
+  }
+}

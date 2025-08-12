@@ -40,6 +40,16 @@ const MainLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
+  const [openKeys, setOpenKeys] = useState(() => {
+    // 从 localStorage 读取保存的展开状态
+    const saved = localStorage.getItem('menuOpenKeys');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const handleOpenChange = (keys) => {
+    setOpenKeys(keys);
+    // 保存到 localStorage
+    localStorage.setItem('menuOpenKeys', JSON.stringify(keys));
+  };
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
   const [passwordForm] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -270,7 +280,9 @@ const MainLayout = () => {
           theme="dark"
           mode="inline"
           selectedKeys={[location.pathname]}
-          defaultOpenKeys={['/products', '/members', '/settings']}
+          // defaultOpenKeys={['/products', '/members', '/settings']}
+          openKeys={openKeys} 
+          onOpenChange={handleOpenChange}
           items={getMenuItems()}
           onClick={handleMenuClick}
         />

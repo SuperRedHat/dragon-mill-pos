@@ -159,3 +159,37 @@ INSERT INTO system_configs (config_key, config_value, description) VALUES
 ('points_rate', '1', '积分比例（消费1元获得积分）'),
 ('points_value', '100', '积分价值（100积分抵扣1元）'),
 ('receipt_footer', '谢谢惠顾，欢迎下次光临！', '小票底部文字');
+
+-- 创建库存记录表
+CREATE TABLE IF NOT EXISTS stock_records (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    product_id INT NOT NULL COMMENT '商品ID',
+    type ENUM('purchase', 'sale', 'adjust', 'loss') NOT NULL COMMENT '类型',
+    quantity INT NOT NULL COMMENT '数量',
+    before_stock INT COMMENT '操作前库存',
+    after_stock INT COMMENT '操作后库存',
+    remark VARCHAR(200) COMMENT '备注',
+    operator_id INT COMMENT '操作人ID',
+    operator_name VARCHAR(50) COMMENT '操作人姓名',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES products(id),
+    INDEX idx_product_id (product_id),
+    INDEX idx_type (type),
+    INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='库存记录表';
+
+-- 插入测试分类数据
+INSERT INTO product_categories (name, description, sort_order) VALUES
+('五谷杂粮', '各类五谷杂粮及其制品', 1),
+('养生粉类', '各种养生保健粉类产品', 2),
+('坚果炒货', '各类坚果和炒货制品', 3),
+('调味香料', '各种调味品和香料', 4),
+('其他商品', '其他商品分类', 99);
+
+-- 插入测试商品数据
+INSERT INTO products (category_id, name, short_name, barcode, unit, price, cost, member_price, stock, min_stock) VALUES
+(1, '五谷杂粮粉', '五谷粉', '6901234567890', '斤', 30.00, 20.00, 28.00, 100, 10),
+(2, '黑芝麻糊', '芝麻糊', '6901234567891', '包', 35.00, 25.00, 32.00, 50, 5),
+(2, '红豆薏米粉', '红豆粉', '6901234567892', '斤', 28.00, 18.00, 26.00, 80, 10),
+(3, '核桃粉', '核桃粉', '6901234567893', '斤', 40.00, 30.00, 38.00, 30, 5),
+(1, '营养早餐粉', '早餐粉', '6901234567894', '包', 25.00, 15.00, 23.00, 60, 10);
