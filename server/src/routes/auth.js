@@ -71,7 +71,18 @@ router.post('/login', async (req, res) => {
       success: true,
       data: {
         token,
-        user: user.toJSON()
+        user: {
+          id: user.id,
+          username: user.username,
+          name: user.name,
+          phone: user.phone,
+          email: user.email,
+          role: user.role,
+          status: user.status,
+          avatar: user.avatar,
+          createdAt: user.createdAt,
+          lastLoginAt: user.lastLoginAt
+        }
       }
     });
   } catch (error) {
@@ -85,9 +96,14 @@ router.post('/login', async (req, res) => {
 
 // 获取当前用户信息
 router.get('/me', authenticate, async (req, res) => {
+  // 重新从数据库获取最新的用户信息
+  const user = await User.findByPk(req.user.id, {
+    attributes: { exclude: ['password'] }
+  });
+  
   res.json({
     success: true,
-    data: req.user.toJSON()
+    data: user
   });
 });
 

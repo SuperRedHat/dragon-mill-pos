@@ -20,7 +20,7 @@ const PageLoading = () => (
     alignItems: 'center', 
     justifyContent: 'center' 
   }}>
-    <Spin size="large" tip="加载中..." />
+    <Spin size="large" />
   </div>
 );
 

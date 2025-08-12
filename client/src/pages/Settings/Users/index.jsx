@@ -9,7 +9,7 @@ import {
   Form,
   Input,
   Select,
-  message,
+  App,
   Popconfirm,
   Tooltip,
   Row,
@@ -43,7 +43,6 @@ import {
 import './index.scss';
 
 const { Option } = Select;
-const { TabPane } = Tabs;
 
 const UserManagement = () => {
   const [loading, setLoading] = useState(false);
@@ -65,6 +64,7 @@ const UserManagement = () => {
   const [form] = Form.useForm();
   const [passwordForm] = Form.useForm();
   const [searchForm] = Form.useForm();
+  const { message } = App.useApp();
 
   // 获取当前登录用户
   const currentLoginUser = JSON.parse(localStorage.getItem('user') || '{}');
@@ -386,99 +386,115 @@ const UserManagement = () => {
     },
   ];
 
+  // Tab 项配置
+  const tabItems = [
+    {
+      key: 'active',
+      label: '用户列表',
+      children: (
+        <>
+          {/* 搜索栏 */}
+          <Form
+            form={searchForm}
+            layout="inline"
+            onFinish={handleSearch}
+            style={{ marginBottom: 16 }}
+          >
+            <Form.Item name="keyword">
+              <Input
+                placeholder="搜索用户名/姓名/手机号"
+                prefix={<SearchOutlined />}
+                allowClear
+                style={{ width: 200 }}
+              />
+            </Form.Item>
+            <Form.Item name="role">
+              <Select
+                placeholder="选择角色"
+                allowClear
+                style={{ width: 120 }}
+              >
+                <Option value="admin">管理员</Option>
+                <Option value="staff">员工</Option>
+              </Select>
+            </Form.Item>
+            <Form.Item name="status">
+              <Select
+                placeholder="选择状态"
+                allowClear
+                style={{ width: 120 }}
+              >
+                <Option value="active">正常</Option>
+                <Option value="inactive">禁用</Option>
+              </Select>
+            </Form.Item>
+            <Form.Item>
+              <Space>
+                <Button type="primary" htmlType="submit">
+                  查询
+                </Button>
+                <Button onClick={handleResetSearch}>
+                  重置
+                </Button>
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={() => handleOpenModal('create')}
+                >
+                  新建用户
+                </Button>
+              </Space>
+            </Form.Item>
+          </Form>
+
+          {/* 用户表格 */}
+          <Table
+            loading={loading}
+            columns={columns}
+            dataSource={users}
+            rowKey="id"
+            scroll={{ x: 1200 }}
+            pagination={{
+              current: currentPage,
+              pageSize: pageSize,
+              total: total,
+              showSizeChanger: true,
+              showTotal: (total) => `共 ${total} 条`,
+              onChange: (page, size) => {
+                setCurrentPage(page);
+                setPageSize(size);
+              },
+            }}
+          />
+        </>
+      )
+    },
+    {
+      key: 'deleted',
+      label: '已删除用户',
+      children: (
+        <Table
+          loading={loading}
+          columns={deletedColumns}
+          dataSource={deletedUsers}
+          rowKey="id"
+          pagination={false}
+          locale={{
+            emptyText: <Empty description="暂无已删除用户" />
+          }}
+        />
+      )
+    }
+  ];
+
   return (
     <div className="user-management">
       <Card>
-        <Tabs activeKey={activeTab} onChange={setActiveTab}>
-          <TabPane tab="用户列表" key="active">
-            {/* 搜索栏 */}
-            <Form
-              form={searchForm}
-              layout="inline"
-              onFinish={handleSearch}
-              style={{ marginBottom: 16 }}
-            >
-              <Form.Item name="keyword">
-                <Input
-                  placeholder="搜索用户名/姓名/手机号"
-                  prefix={<SearchOutlined />}
-                  allowClear
-                  style={{ width: 200 }}
-                />
-              </Form.Item>
-              <Form.Item name="role">
-                <Select
-                  placeholder="选择角色"
-                  allowClear
-                  style={{ width: 120 }}
-                >
-                  <Option value="admin">管理员</Option>
-                  <Option value="staff">员工</Option>
-                </Select>
-              </Form.Item>
-              <Form.Item name="status">
-                <Select
-                  placeholder="选择状态"
-                  allowClear
-                  style={{ width: 120 }}
-                >
-                  <Option value="active">正常</Option>
-                  <Option value="inactive">禁用</Option>
-                </Select>
-              </Form.Item>
-              <Form.Item>
-                <Space>
-                  <Button type="primary" htmlType="submit">
-                    查询
-                  </Button>
-                  <Button onClick={handleResetSearch}>
-                    重置
-                  </Button>
-                  <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={() => handleOpenModal('create')}
-                  >
-                    新建用户
-                  </Button>
-                </Space>
-              </Form.Item>
-            </Form>
-
-            {/* 用户表格 */}
-            <Table
-              loading={loading}
-              columns={columns}
-              dataSource={users}
-              rowKey="id"
-              scroll={{ x: 1200 }}
-              pagination={{
-                current: currentPage,
-                pageSize: pageSize,
-                total: total,
-                showSizeChanger: true,
-                showTotal: (total) => `共 ${total} 条`,
-                onChange: (page, size) => {
-                  setCurrentPage(page);
-                  setPageSize(size);
-                },
-              }}
-            />
-          </TabPane>
-          
-          <TabPane tab="已删除用户" key="deleted">
-            <Table
-              loading={loading}
-              columns={deletedColumns}
-              dataSource={deletedUsers}
-              rowKey="id"
-              pagination={false}
-              locale={{
-                emptyText: <Empty description="暂无已删除用户" />
-              }}
-            />
-          </TabPane>
-        </Tabs>
+        <Tabs 
+          activeKey={activeTab} 
+          onChange={setActiveTab}
+          items={tabItems}
+        />
       </Card>
 
       {/* 新建/编辑用户弹窗 */}

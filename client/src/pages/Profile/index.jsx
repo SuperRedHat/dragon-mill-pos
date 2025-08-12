@@ -8,7 +8,7 @@ import {
   Button,
   Avatar,
   Upload,
-  message,
+  App,
   Tabs,
   Tag,
   Timeline,
@@ -62,6 +62,7 @@ const Profile = () => {
   
   const [form] = Form.useForm();
   const [passwordForm] = Form.useForm();
+  const { message } = App.useApp();
 
   // 获取用户信息
   const fetchUserInfo = async () => {
@@ -211,12 +212,58 @@ const Profile = () => {
   };
 
   // 上传头像
-  const handleUploadAvatar = (info) => {
-    if (info.file.status === 'done') {
-      message.success('头像上传成功');
-      // 更新头像URL
-    } else if (info.file.status === 'error') {
+  const handleUploadAvatar = async (options) => {
+    const { file, onSuccess, onError } = options;
+    
+    const formData = new FormData();
+    formData.append('avatar', file);
+    
+    try {
+      // 直接使用 fetch 发送请求，避免 axios 的问题
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:3001/api/v1/profile/avatar', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+      
+      const res = await response.json();
+      
+      if (res.success) {
+        message.success('头像上传成功');
+        onSuccess(res.data);
+        
+        // 更新用户信息，添加时间戳避免缓存
+        const avatarUrl = res.data.avatar + '?t=' + Date.now();
+        setUserInfo(prev => ({ 
+          ...prev, 
+          avatar: res.data.avatar  // 保存原始URL
+        }));
+        
+        // 更新本地存储
+        const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+        const updatedUser = { 
+          ...storedUser, 
+          avatar: res.data.avatar 
+        };
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        
+        // 触发头像更新事件
+        eventBus.emit(EVENTS.AVATAR_UPDATED, res.data.avatar);
+        eventBus.emit(EVENTS.USER_UPDATED, updatedUser);
+        
+        // 强制刷新用户信息
+        await fetchUserInfo();
+      } else {
+        message.error(res.error || '上传失败');
+        onError(new Error(res.error || '上传失败'));
+      }
+    } catch (error) {
+      console.error('上传错误:', error);
       message.error('头像上传失败');
+      onError(error);
     }
   };
 
@@ -300,6 +347,188 @@ const Profile = () => {
     }
   ];
 
+  // Tabs 配置项
+  const tabItems = [
+    {
+      key: 'basic',
+      label: '基本信息',
+      children: (
+        <>
+          {/* 操作按钮放在表单外部 */}
+          <div style={{ marginBottom: 16 }}>
+            <Space>
+              {editMode ? (
+                <>
+                  <Button 
+                    type="primary" 
+                    loading={loading}
+                    onClick={() => form.submit()}
+                  >
+                    <SaveOutlined /> 保存
+                  </Button>
+                  <Button onClick={() => {
+                    setEditMode(false);
+                    form.setFieldsValue({
+                      username: userInfo.username,
+                      name: userInfo.name,
+                      phone: userInfo.phone,
+                      email: userInfo.email
+                    });
+                  }}>
+                    取消
+                  </Button>
+                </>
+              ) : (
+                <Button 
+                  type="primary" 
+                  onClick={() => setEditMode(true)}
+                >
+                  <EditOutlined /> 编辑信息
+                </Button>
+              )}
+            </Space>
+          </div>
+
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={handleSaveProfile}
+          >
+            <Row gutter={16}>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  name="username"
+                  label="用户名"
+                >
+                  <Input 
+                    prefix={<UserOutlined />} 
+                    disabled 
+                    placeholder="用户名不可修改"
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  name="name"
+                  label="姓名"
+                  rules={editMode ? [{ required: true, message: '请输入姓名' }] : []}
+                >
+                  <Input 
+                    prefix={<UserOutlined />} 
+                    disabled={!editMode}
+                    placeholder="请输入姓名"
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  name="phone"
+                  label="手机号"
+                  rules={editMode ? [
+                    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号' }
+                  ] : []}
+                >
+                  <Input 
+                    prefix={<PhoneOutlined />} 
+                    disabled={!editMode}
+                    placeholder="请输入手机号"
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  name="email"
+                  label="邮箱"
+                  rules={editMode ? [
+                    { type: 'email', message: '请输入正确的邮箱' }
+                  ] : []}
+                >
+                  <Input 
+                    prefix={<MailOutlined />} 
+                    disabled={!editMode}
+                    placeholder="请输入邮箱"
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+          </Form>
+        </>
+      )
+    },
+    {
+      key: 'security',
+      label: '安全设置',
+      children: (
+        <>
+          <Card 
+            title="密码管理" 
+            size="small"
+            extra={
+              <Button 
+                type="link" 
+                onClick={() => setPasswordModalVisible(true)}
+              >
+                修改密码
+              </Button>
+            }
+          >
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <div className="security-item">
+                <SafetyOutlined /> 
+                <Text style={{ marginLeft: 8 }}>
+                  为了账号安全，建议定期修改密码
+                </Text>
+              </div>
+              <div className="security-item">
+                <LockOutlined />
+                <Text style={{ marginLeft: 8 }}>
+                  密码强度：
+                  <Tag color="green" style={{ marginLeft: 8 }}>强</Tag>
+                </Text>
+              </div>
+            </Space>
+          </Card>
+
+          <Card 
+            title="登录历史" 
+            size="small" 
+            style={{ marginTop: 16 }}
+            extra={
+              <Text type="secondary">最近20条记录</Text>
+            }
+          >
+            <Table
+              columns={loginHistoryColumns}
+              dataSource={loginHistory}
+              rowKey="id"
+              pagination={false}
+              size="small"
+            />
+          </Card>
+        </>
+      )
+    },
+    {
+      key: 'logs',
+      label: '操作日志',
+      children: (
+        <Table
+          columns={operationLogColumns}
+          dataSource={operationLogs}
+          rowKey="id"
+          pagination={{
+            pageSize: 10,
+            showSizeChanger: true,
+            showTotal: (total) => `共 ${total} 条`
+          }}
+          locale={{
+            emptyText: <Empty description="暂无操作记录" />
+          }}
+        />
+      )
+    }
+  ];
+
   return (
     <div className="profile-page">
       <Row gutter={24}>
@@ -310,13 +539,27 @@ const Profile = () => {
               <Upload
                 name="avatar"
                 showUploadList={false}
-                onChange={handleUploadAvatar}
+                customRequest={handleUploadAvatar}
                 disabled={!editMode}
+                accept="image/*"
+                beforeUpload={(file) => {
+                  const isImage = file.type.startsWith('image/');
+                  if (!isImage) {
+                    message.error('只能上传图片文件！');
+                    return false;
+                  }
+                  const isLt2M = file.size / 1024 / 1024 < 2;
+                  if (!isLt2M) {
+                    message.error('图片大小不能超过2MB！');
+                    return false;
+                  }
+                  return true;
+                }}
               >
                 <Avatar 
                   size={120} 
                   icon={<UserOutlined />}
-                  src={userInfo.avatar}
+                  src={getAvatarUrl(userInfo.avatar)}
                   className="user-avatar"
                   style={{ cursor: editMode ? 'pointer' : 'default' }}
                 />
@@ -373,175 +616,11 @@ const Profile = () => {
         {/* 右侧详细信息 */}
         <Col xs={24} lg={16}>
           <Card>
-            <Tabs activeKey={activeTab} onChange={setActiveTab}>
-              {/* 基本信息 */}
-              <TabPane tab="基本信息" key="basic">
-                {/* 操作按钮放在表单外部 */}
-                <div style={{ marginBottom: 16 }}>
-                  <Space>
-                    {editMode ? (
-                      <>
-                        <Button 
-                          type="primary" 
-                          loading={loading}
-                          onClick={() => form.submit()}
-                        >
-                          <SaveOutlined /> 保存
-                        </Button>
-                        <Button onClick={() => {
-                          setEditMode(false);
-                          form.setFieldsValue({
-                            username: userInfo.username,
-                            name: userInfo.name,
-                            phone: userInfo.phone,
-                            email: userInfo.email
-                          });
-                        }}>
-                          取消
-                        </Button>
-                      </>
-                    ) : (
-                      <Button 
-                        type="primary" 
-                        onClick={() => setEditMode(true)}
-                      >
-                        <EditOutlined /> 编辑信息
-                      </Button>
-                    )}
-                  </Space>
-                </div>
-
-                <Form
-                  form={form}
-                  layout="vertical"
-                  onFinish={handleSaveProfile}
-                >
-                  <Row gutter={16}>
-                    <Col xs={24} md={12}>
-                      <Form.Item
-                        name="username"
-                        label="用户名"
-                      >
-                        <Input 
-                          prefix={<UserOutlined />} 
-                          disabled 
-                          placeholder="用户名不可修改"
-                        />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} md={12}>
-                      <Form.Item
-                        name="name"
-                        label="姓名"
-                        rules={editMode ? [{ required: true, message: '请输入姓名' }] : []}
-                      >
-                        <Input 
-                          prefix={<UserOutlined />} 
-                          disabled={!editMode}
-                          placeholder="请输入姓名"
-                        />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} md={12}>
-                      <Form.Item
-                        name="phone"
-                        label="手机号"
-                        rules={editMode ? [
-                          { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号' }
-                        ] : []}
-                      >
-                        <Input 
-                          prefix={<PhoneOutlined />} 
-                          disabled={!editMode}
-                          placeholder="请输入手机号"
-                        />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} md={12}>
-                      <Form.Item
-                        name="email"
-                        label="邮箱"
-                        rules={editMode ? [
-                          { type: 'email', message: '请输入正确的邮箱' }
-                        ] : []}
-                      >
-                        <Input 
-                          prefix={<MailOutlined />} 
-                          disabled={!editMode}
-                          placeholder="请输入邮箱"
-                        />
-                      </Form.Item>
-                    </Col>
-                  </Row>
-                </Form>
-              </TabPane>
-
-              {/* 安全设置 */}
-              <TabPane tab="安全设置" key="security">
-                <Card 
-                  title="密码管理" 
-                  size="small"
-                  extra={
-                    <Button 
-                      type="link" 
-                      onClick={() => setPasswordModalVisible(true)}
-                    >
-                      修改密码
-                    </Button>
-                  }
-                >
-                  <Space direction="vertical" style={{ width: '100%' }}>
-                    <div className="security-item">
-                      <SafetyOutlined /> 
-                      <Text style={{ marginLeft: 8 }}>
-                        为了账号安全，建议定期修改密码
-                      </Text>
-                    </div>
-                    <div className="security-item">
-                      <LockOutlined />
-                      <Text style={{ marginLeft: 8 }}>
-                        密码强度：
-                        <Tag color="green" style={{ marginLeft: 8 }}>强</Tag>
-                      </Text>
-                    </div>
-                  </Space>
-                </Card>
-
-                <Card 
-                  title="登录历史" 
-                  size="small" 
-                  style={{ marginTop: 16 }}
-                  extra={
-                    <Text type="secondary">最近20条记录</Text>
-                  }
-                >
-                  <Table
-                    columns={loginHistoryColumns}
-                    dataSource={loginHistory}
-                    rowKey="id"
-                    pagination={false}
-                    size="small"
-                  />
-                </Card>
-              </TabPane>
-
-              {/* 操作日志 */}
-              <TabPane tab="操作日志" key="logs">
-                <Table
-                  columns={operationLogColumns}
-                  dataSource={operationLogs}
-                  rowKey="id"
-                  pagination={{
-                    pageSize: 10,
-                    showSizeChanger: true,
-                    showTotal: (total) => `共 ${total} 条`
-                  }}
-                  locale={{
-                    emptyText: <Empty description="暂无操作记录" />
-                  }}
-                />
-              </TabPane>
-            </Tabs>
+            <Tabs 
+              activeKey={activeTab} 
+              onChange={setActiveTab}
+              items={tabItems}
+            />
           </Card>
         </Col>
       </Row>

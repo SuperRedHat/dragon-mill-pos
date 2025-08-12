@@ -1,5 +1,5 @@
 import React from 'react';
-import { Form, Input, Button, Card, message } from 'antd';
+import { Form, Input, Button, Card, App } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { login } from '@/api/auth';
@@ -9,6 +9,7 @@ const Login = () => {
   const [form] = Form.useForm();
   const navigate = useNavigate();
   const [loading, setLoading] = React.useState(false);
+  const { message } = App.useApp();
 
   const handleSubmit = async (values) => {
     setLoading(true);

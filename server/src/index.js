@@ -5,18 +5,29 @@ import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { logger } from './utils/logger.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { sequelize } from './config/database.js';
 import { connectRedis } from './config/redis.js';
+import { ensureUploadDirs } from './utils/ensureDir.js';
 import routes from './routes/index.js';
 import testRoutes from './routes/test.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// 确保必要的目录存在
+const { uploadsDir } = ensureUploadDirs();
+
 // 基础中间件
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: false, // 允许跨域访问静态资源
+}));
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:5173',
   credentials: true,
@@ -46,8 +57,17 @@ const limiter = rateLimit({
 // 应用限流到 API 路由
 app.use('/api/', limiter);
 
-// 静态文件服务
-app.use('/uploads', express.static('uploads'));
+// 静态文件服务 - 必须在API路由之前
+const uploadsPath = path.join(__dirname, '../uploads');
+logger.info(`静态文件目录: ${uploadsPath}`);
+app.use('/uploads', express.static(uploadsPath, {
+  maxAge: '1d',
+  setHeaders: (res, path) => {
+    if (path.endsWith('.jpg') || path.endsWith('.jpeg') || path.endsWith('.png') || path.endsWith('.gif')) {
+      res.set('Cache-Control', 'public, max-age=86400');
+    }
+  }
+}));
 
 // 测试路由
 app.use('/api/test', testRoutes);
@@ -94,6 +114,7 @@ const startServer = async () => {
       logger.info(`环境: ${process.env.NODE_ENV || 'development'}`);
       logger.info(`测试路由: http://localhost:${PORT}/api/test/ping`);
       logger.info(`API 路由: http://localhost:${PORT}/api/v1`);
+      logger.info(`静态文件: http://localhost:${PORT}/uploads/`);
     });
   } catch (error) {
     logger.error('服务器启动失败:', error);

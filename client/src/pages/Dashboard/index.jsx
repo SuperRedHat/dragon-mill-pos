@@ -1,5 +1,5 @@
 import React from 'react';
-import { Row, Col, Card, Statistic, Table, Progress } from 'antd';
+import { Row, Col, Card, Statistic, Table, Progress, App } from 'antd';
 import {
   UserOutlined,
   ShoppingCartOutlined,
@@ -11,6 +11,9 @@ import {
 import './index.scss';
 
 const Dashboard = () => {
+  // 使用 App.useApp 获取 message
+  const { message } = App.useApp();
+
   // 模拟数据
   const todayStats = {
     sales: 12580.50,
@@ -117,14 +120,14 @@ const Dashboard = () => {
       {/* 图表和列表 */}
       <Row gutter={16} style={{ marginTop: 16 }}>
         <Col xs={24} md={16}>
-          <Card title="销售趋势" bordered={false}>
+          <Card title="销售趋势">
             <div style={{ height: 350, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <span style={{ color: '#999' }}>图表功能开发中...</span>
             </div>
           </Card>
         </Col>
         <Col xs={24} md={8}>
-          <Card title="今日热销商品" bordered={false}>
+          <Card title="今日热销商品">
             <Table
               columns={columns}
               dataSource={hotProducts}
@@ -138,7 +141,7 @@ const Dashboard = () => {
       {/* 其他信息 */}
       <Row gutter={16} style={{ marginTop: 16 }}>
         <Col xs={24} md={8}>
-          <Card title="收银员业绩" bordered={false}>
+          <Card title="收银员业绩">
             <div className="staff-performance">
               <div className="staff-item">
                 <span>张三</span>
@@ -159,7 +162,7 @@ const Dashboard = () => {
           </Card>
         </Col>
         <Col xs={24} md={8}>
-          <Card title="库存预警" bordered={false}>
+          <Card title="库存预警">
             <div className="inventory-alert">
               <div className="alert-item">
                 <span className="product">核桃仁</span>
@@ -177,7 +180,7 @@ const Dashboard = () => {
           </Card>
         </Col>
         <Col xs={24} md={8}>
-          <Card title="待办事项" bordered={false}>
+          <Card title="待办事项">
             <div className="todo-list">
               <div className="todo-item">
                 <span className="dot"></span>

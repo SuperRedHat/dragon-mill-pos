@@ -27,9 +27,5 @@ export const getOperationLogs = (params) => {
 
 // 上传头像
 export const uploadAvatar = (formData) => {
-  return request.post('/profile/avatar', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data'
-    }
-  });
+  return request.post('/profile/avatar', formData);
 };

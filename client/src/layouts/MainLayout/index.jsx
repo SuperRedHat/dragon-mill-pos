@@ -11,7 +11,7 @@ import {
   Form,
   Input,
   Button,
-  message,
+  App,
   theme
 } from 'antd';
 import {
@@ -30,6 +30,8 @@ import {
   ExperimentOutlined
 } from '@ant-design/icons';
 import { logout, changePassword } from '@/api/auth';
+import { getAvatarUrl } from '@/utils/avatar';
+import eventBus, { EVENTS } from '@/utils/eventBus';
 import './index.scss';
 
 const { Header, Sider, Content } = Layout;
@@ -41,120 +43,144 @@ const MainLayout = () => {
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
   const [passwordForm] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState(() => {
+    return JSON.parse(localStorage.getItem('user') || '{}');
+  });
+  const { message: messageApi } = App.useApp();
   
   const {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
 
-  // 获取当前用户信息
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  // 监听用户信息更新事件
+  useEffect(() => {
+    const handleUserUpdate = (user) => {
+      setCurrentUser(user);
+    };
 
-  // 菜单配置
-  const menuItems = [
-    {
-      key: '/dashboard',
-      icon: <DashboardOutlined />,
-      label: '仪表盘',
-    },
-    {
-      key: '/cashier',
-      icon: <ShoppingCartOutlined />,
-      label: '收银台',
-    },
-    {
-      key: '/members',
-      icon: <TeamOutlined />,
-      label: '会员管理',
-      children: [
-        {
-          key: '/members/list',
-          label: '会员列表',
-        },
-        {
-          key: '/members/points',
-          label: '积分管理',
-        },
-      ],
-    },
-    {
-      key: '/products',
-      icon: <ShopOutlined />,
-      label: '商品管理',
-      children: [
-        {
-          key: '/products/list',
-          label: '商品列表',
-        },
-        {
-          key: '/products/categories',
-          label: '商品分类',
-        },
-        {
-          key: '/products/inventory',
-          label: '库存管理',
-        },
-      ],
-    },
-    {
-      key: '/recipes',
-      icon: <ExperimentOutlined />,
-      label: '配方管理',
-      children: [
-        {
-          key: '/recipes/materials',
-          label: '原材料管理',
-        },
-        {
-          key: '/recipes/list',
-          label: '配方列表',
-        },
-        {
-          key: '/recipes/service',
-          label: '磨粉服务',
-        },
-      ],
-    },
-    {
-      key: '/reports',
-      icon: <BarChartOutlined />,
-      label: '报表中心',
-      children: [
-        {
-          key: '/reports/sales',
-          label: '营收报表',
-        },
-        {
-          key: '/reports/products',
-          label: '商品分析',
-        },
-        {
-          key: '/reports/members',
-          label: '会员分析',
-        },
-      ],
-    },
-    {
-      key: '/settings',
-      icon: <SettingOutlined />,
-      label: '系统设置',
-      children: [
-        {
-          key: '/settings/users',
-          label: '用户管理',
-          // 只有管理员可见
-          visible: user.role === 'admin',
-        },
-        {
-          key: '/settings/shop',
-          label: '店铺设置',
-        },
-        {
-          key: '/settings/system',
-          label: '系统配置',
-        },
-      ].filter(item => item.visible !== false),
-    },
-  ];
+    const handleAvatarUpdate = (avatar) => {
+      setCurrentUser(prev => ({ ...prev, avatar }));
+    };
+
+    // 订阅事件
+    const unsubUser = eventBus.on(EVENTS.USER_UPDATED, handleUserUpdate);
+    const unsubAvatar = eventBus.on(EVENTS.AVATAR_UPDATED, handleAvatarUpdate);
+
+    // 清理函数
+    return () => {
+      unsubUser();
+      unsubAvatar();
+    };
+  }, []);
+
+  // 菜单配置 - 根据用户角色过滤菜单项
+  const getMenuItems = () => {
+    const allMenuItems = [
+      {
+        key: '/dashboard',
+        icon: <DashboardOutlined />,
+        label: '仪表盘',
+      },
+      {
+        key: '/cashier',
+        icon: <ShoppingCartOutlined />,
+        label: '收银台',
+      },
+      {
+        key: '/members',
+        icon: <TeamOutlined />,
+        label: '会员管理',
+        children: [
+          {
+            key: '/members/list',
+            label: '会员列表',
+          },
+          {
+            key: '/members/points',
+            label: '积分管理',
+          },
+        ],
+      },
+      {
+        key: '/products',
+        icon: <ShopOutlined />,
+        label: '商品管理',
+        children: [
+          {
+            key: '/products/list',
+            label: '商品列表',
+          },
+          {
+            key: '/products/categories',
+            label: '商品分类',
+          },
+          {
+            key: '/products/inventory',
+            label: '库存管理',
+          },
+        ],
+      },
+      {
+        key: '/recipes',
+        icon: <ExperimentOutlined />,
+        label: '配方管理',
+        children: [
+          {
+            key: '/recipes/materials',
+            label: '原材料管理',
+          },
+          {
+            key: '/recipes/list',
+            label: '配方列表',
+          },
+          {
+            key: '/recipes/service',
+            label: '磨粉服务',
+          },
+        ],
+      },
+      {
+        key: '/reports',
+        icon: <BarChartOutlined />,
+        label: '报表中心',
+        children: [
+          {
+            key: '/reports/sales',
+            label: '营收报表',
+          },
+          {
+            key: '/reports/products',
+            label: '商品分析',
+          },
+          {
+            key: '/reports/members',
+            label: '会员分析',
+          },
+        ],
+      },
+      {
+        key: '/settings',
+        icon: <SettingOutlined />,
+        label: '系统设置',
+        children: [
+          ...(currentUser.role === 'admin' ? [{
+            key: '/settings/users',
+            label: '用户管理',
+          }] : []),
+          {
+            key: '/settings/shop',
+            label: '店铺设置',
+          },
+          {
+            key: '/settings/system',
+            label: '系统配置',
+          },
+        ],
+      },
+    ];
+
+    return allMenuItems;
+  };
 
   // 处理菜单点击
   const handleMenuClick = ({ key }) => {
@@ -173,7 +199,7 @@ const MainLayout = () => {
           await logout();
           localStorage.removeItem('token');
           localStorage.removeItem('user');
-          message.success('已安全退出');
+          messageApi.success('已安全退出');
           navigate('/login');
         } catch (error) {
           // 即使接口调用失败也清除本地数据
@@ -190,7 +216,7 @@ const MainLayout = () => {
     setLoading(true);
     try {
       await changePassword(values);
-      message.success('密码修改成功，请重新登录');
+      messageApi.success('密码修改成功，请重新登录');
       setPasswordModalVisible(false);
       passwordForm.resetFields();
       // 清除登录信息，跳转到登录页
@@ -245,7 +271,7 @@ const MainLayout = () => {
           mode="inline"
           selectedKeys={[location.pathname]}
           defaultOpenKeys={['/products', '/members', '/settings']}
-          items={menuItems}
+          items={getMenuItems()}
           onClick={handleMenuClick}
         />
       </Sider>
@@ -279,8 +305,11 @@ const MainLayout = () => {
                   placement="bottomRight"
                 >
                   <Space className="user-info" style={{ cursor: 'pointer' }}>
-                    <Avatar icon={<UserOutlined />} />
-                    <span>{user.name}</span>
+                    <Avatar 
+                      icon={<UserOutlined />} 
+                      src={getAvatarUrl(currentUser.avatar)}
+                    />
+                    <span>{currentUser.name || '用户'}</span>
                   </Space>
                 </Dropdown>
               </Space>
