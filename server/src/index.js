@@ -101,7 +101,7 @@ const startServer = async () => {
 
     // 同步数据库模型（生产环境请使用迁移）
     if (process.env.NODE_ENV === 'development') {
-      await sequelize.sync({ alter: true });
+      await sequelize.sync({ alter: false });
       logger.info('数据库模型同步完成');
     }
 

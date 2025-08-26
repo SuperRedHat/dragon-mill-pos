@@ -703,7 +703,9 @@ const ProductList = () => {
                 >
                   <InputNumber
                     min={0}
-                    placeholder="0"
+                    step={0.1}  // 添加步进值
+                    precision={2}  // 保留2位小数
+                    placeholder="0.00"
                     style={{ width: '100%' }}
                   />
                 </Form.Item>
@@ -719,7 +721,9 @@ const ProductList = () => {
               >
                 <InputNumber
                   min={0}
-                  placeholder="0"
+                  step={0.1}  // 添加步进值
+                  precision={2}  // 保留2位小数
+                  placeholder="0.00"
                   style={{ width: '100%' }}
                 />
               </Form.Item>
@@ -734,7 +738,9 @@ const ProductList = () => {
               >
                 <InputNumber
                   min={0}
-                  placeholder="1000"
+                  step={0.1}  // 添加步进值
+                  precision={2}  // 保留2位小数
+                  placeholder="1000.00"
                   style={{ width: '100%' }}
                 />
               </Form.Item>

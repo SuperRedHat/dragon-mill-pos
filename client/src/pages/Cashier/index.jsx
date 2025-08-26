@@ -77,6 +77,10 @@ const Cashier = () => {
   const [memberSearchLoading, setMemberSearchLoading] = useState(false);
   const searchTimeoutRef = useRef(null);
 
+  const [quantityModalVisible, setQuantityModalVisible] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [quantityForm] = Form.useForm();
+
   // 获取商品列表
   const fetchProducts = async () => {
     try {
@@ -111,26 +115,40 @@ const Cashier = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // 添加商品到购物车
-  const addToCart = (product) => {
+  // 修改为先打开数量输入弹窗
+  const handleProductClick = (product) => {
+    setSelectedProduct(product);
+    setQuantityModalVisible(true);
+    quantityForm.setFieldsValue({ quantity: 1 });
+  };
+
+  // 新增确认添加到购物车的函数
+  const confirmAddToCart = (values) => {
+    const product = selectedProduct;
+    const quantity = parseFloat(values.quantity);
+    
     const existingItem = cart.find(item => item.id === product.id);
     
     if (existingItem) {
-      updateQuantity(product.id, existingItem.quantity + 1);
+      updateQuantity(product.id, existingItem.quantity + quantity);
     } else {
       setCart([...cart, {
         ...product,
-        quantity: 1,
-        subtotal: selectedMember && product.memberPrice ? product.memberPrice : product.price
+        quantity: quantity,
+        subtotal: (selectedMember && product.memberPrice ? product.memberPrice : product.price) * quantity
       }]);
     }
     
-    message.success(`已添加 ${product.name}`);
+    message.success(`已添加 ${product.name} x ${quantity}${product.unit}`);
+    setQuantityModalVisible(false);
+    setSelectedProduct(null);
+    quantityForm.resetFields();
   };
 
   // 更新商品数量
   const updateQuantity = (productId, quantity) => {
-    if (quantity <= 0) {
+    // 如果数量无效或小于等于0，移除商品
+    if (!quantity || quantity <= 0) {
       removeFromCart(productId);
       return;
     }
@@ -140,8 +158,8 @@ const Cashier = () => {
         const price = selectedMember && item.memberPrice ? item.memberPrice : item.price;
         return {
           ...item,
-          quantity,
-          subtotal: price * quantity
+          quantity: parseFloat(quantity),  // 确保是数字类型
+          subtotal: price * parseFloat(quantity)
         };
       }
       return item;
@@ -424,28 +442,20 @@ const Cashier = () => {
       title: '数量',
       dataIndex: 'quantity',
       key: 'quantity',
-      width: 120,
+      width: 150,
       render: (quantity, record) => (
         <Space>
-          <Button
-            size="small"
-            icon={<MinusOutlined />}
-            onClick={() => updateQuantity(record.id, quantity - 1)}
-          />
           <InputNumber
             size="small"
-            min={1}
+            min={0.1}
+            step={0.5}
             max={record.stock}
+            precision={2}  // 保留2位小数
             value={quantity}
-            onChange={(value) => updateQuantity(record.id, value)}
-            style={{ width: 50 }}
+            onChange={(value) => updateQuantity(record.id, value || 0)}
+            style={{ width: 80 }}
           />
-          <Button
-            size="small"
-            icon={<PlusOutlined />}
-            onClick={() => updateQuantity(record.id, quantity + 1)}
-            disabled={quantity >= record.stock}
-          />
+          <span style={{ fontSize: 12, color: '#666' }}>{record.unit}</span>
         </Space>
       )
     },
@@ -454,7 +464,11 @@ const Cashier = () => {
       dataIndex: 'subtotal',
       key: 'subtotal',
       width: 90,
-      render: (value) => `¥${value.toFixed(2)}`
+      render: (value) => (
+        <span style={{ color: '#f5222d', fontWeight: 500 }}>
+          ¥{value.toFixed(2)}
+        </span>
+      )
     },
     {
       title: '操作',
@@ -477,7 +491,7 @@ const Cashier = () => {
     <Card
       hoverable
       className="product-item"
-      onClick={() => addToCart(product)}
+      onClick={() => handleProductClick(product)}
     >
       <div className="product-image">
         {product.image ? (
@@ -497,7 +511,7 @@ const Cashier = () => {
           )}
         </div>
         <div className="product-stock">
-          库存: {product.stock}
+          库存: {product.stock}{product.unit}
           {product.barcode && (
             <div className="product-barcode">
               <BarcodeOutlined /> {product.barcode}
@@ -718,9 +732,9 @@ const Cashier = () => {
             <div className="checkout-section">
               <div className="total-info">
                 <Row justify="space-between">
-                  <Col>商品数量：</Col>
+                  <Col>商品种类：</Col>
                   <Col>
-                    <strong>{cart.reduce((sum, item) => sum + item.quantity, 0)}</strong> 件
+                    <strong>{cart.length}</strong> 种
                   </Col>
                 </Row>
                 <Row justify="space-between" className="total-amount">
@@ -872,6 +886,71 @@ const Cashier = () => {
           </Form.Item>
         </Form>
       </Modal>
+      
+      {/* 在支付弹窗后面添加数量输入弹窗 */}
+      <Modal
+        title={`请输入购买数量 - ${selectedProduct?.name}`}
+        open={quantityModalVisible}
+        onCancel={() => {
+          setQuantityModalVisible(false);
+          setSelectedProduct(null);
+        }}
+        footer={null}
+        width={400}
+      >
+        {selectedProduct && (
+          <>
+            <div style={{ marginBottom: 16 }}>
+              <Tag color="blue">库存: {selectedProduct.stock} {selectedProduct.unit}</Tag>
+              <Tag color="green">单价: ¥{selectedProduct.price}/{ selectedProduct.unit}</Tag>
+              {selectedProduct.memberPrice && selectedMember && (
+                <Tag color="gold">会员价: ¥{selectedProduct.memberPrice}/{selectedProduct.unit}</Tag>
+              )}
+            </div>
+            
+            <Form
+              form={quantityForm}
+              layout="vertical"
+              onFinish={confirmAddToCart}
+            >
+              <Form.Item
+                name="quantity"
+                label={`购买数量（${selectedProduct.unit}）`}
+                rules={[
+                  { required: true, message: '请输入数量' },
+                  { type: 'number', min: 0.1, message: '数量必须大于0' },
+                  { type: 'number', max: selectedProduct.stock, message: '超出库存' }
+                ]}
+              >
+                <InputNumber
+                  min={0.1}
+                  max={selectedProduct.stock}
+                  step={0.5}
+                  precision={2}
+                  style={{ width: '100%' }}
+                  placeholder={`请输入数量，当前库存 ${selectedProduct.stock} ${selectedProduct.unit}`}
+                  addonAfter={selectedProduct.unit}
+                />
+              </Form.Item>
+              
+              <Form.Item>
+                <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+                  <Button onClick={() => {
+                    setQuantityModalVisible(false);
+                    setSelectedProduct(null);
+                  }}>
+                    取消
+                  </Button>
+                  <Button type="primary" htmlType="submit">
+                    加入购物车
+                  </Button>
+                </Space>
+              </Form.Item>
+            </Form>
+          </>
+        )}
+      </Modal>
+
     </div>
   );
 };

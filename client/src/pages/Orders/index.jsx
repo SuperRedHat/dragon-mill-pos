@@ -89,6 +89,11 @@ const Orders = () => {
     if (values.orderNo) {
       params.orderNo = values.orderNo;
     }
+
+    // 新增会员搜索参数
+    if (values.memberKeyword) {
+      params.memberKeyword = values.memberKeyword;
+    }
     
     if (values.dateRange) {
       params.startDate = values.dateRange[0].format('YYYY-MM-DD');
@@ -363,6 +368,15 @@ const Orders = () => {
             />
           </Form.Item>
           
+          <Form.Item name="memberKeyword">
+            <Input
+              placeholder="会员号/姓名/手机号"
+              prefix={<UserOutlined />}
+              allowClear
+              style={{ width: 200 }}
+            />
+          </Form.Item>
+
           <Form.Item name="dateRange">
             <RangePicker 
               placeholder={['开始日期', '结束日期']}

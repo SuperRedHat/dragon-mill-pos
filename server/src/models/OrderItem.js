@@ -37,9 +37,13 @@ const OrderItem = sequelize.define('OrderItem', {
     }
   },
   quantity: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.DECIMAL(10, 2),  // 改为支持小数
     allowNull: false,
-    comment: '数量'
+    comment: '数量',
+    get() {
+      const value = this.getDataValue('quantity');
+      return value ? parseFloat(value) : 0;
+    }
   },
   subtotal: {
     type: DataTypes.DECIMAL(10, 2),

@@ -19,17 +19,17 @@ const StockRecord = sequelize.define('StockRecord', {
     comment: '类型：采购/销售/调整/报损'
   },
   quantity: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.DECIMAL(10, 2),  // 改为支持小数
     allowNull: false,
     comment: '数量（正数入库，负数出库）'
   },
   beforeStock: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.DECIMAL(10, 2),  // 改为支持小数
     field: 'before_stock',
     comment: '操作前库存'
   },
   afterStock: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.DECIMAL(10, 2),  // 改为支持小数
     field: 'after_stock',
     comment: '操作后库存'
   },

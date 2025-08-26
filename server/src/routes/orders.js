@@ -23,6 +23,7 @@ router.get('/', async (req, res) => {
       page = 1, 
       pageSize = 10,
       orderNo = '',
+      memberKeyword = '',
       memberId = '',
       userId = '',
       status = '',
@@ -33,6 +34,34 @@ router.get('/', async (req, res) => {
     const offset = (page - 1) * pageSize;
     const where = {};
     
+    // 新增：会员搜索条件
+    const includeOptions = [
+      { model: User, as: 'cashier', attributes: ['name'] }
+    ];
+    
+    if (memberKeyword) {
+      includeOptions.push({
+        model: Member,
+        as: 'member',
+        attributes: ['name', 'phone', 'memberNo'],
+        where: {
+          [Op.or]: [
+            { name: { [Op.like]: `%${memberKeyword}%` } },
+            { phone: { [Op.like]: `%${memberKeyword}%` } },
+            { memberNo: { [Op.like]: `%${memberKeyword}%` } }
+          ]
+        },
+        required: true  // 内连接，只返回匹配的订单
+      });
+    } else {
+      includeOptions.push({
+        model: Member,
+        as: 'member',
+        attributes: ['name', 'phone'],
+        required: false  // 左连接，包含非会员订单
+      });
+    }
+
     if (orderNo) {
       where.orderNo = { [Op.like]: `%${orderNo}%` };
     }
@@ -57,10 +86,7 @@ router.get('/', async (req, res) => {
     
     const { count, rows } = await Order.findAndCountAll({
       where,
-      include: [
-        { model: Member, as: 'member', attributes: ['name', 'phone'] },
-        { model: User, as: 'cashier', attributes: ['name'] }
-      ],
+      include:includeOptions,
       limit: parseInt(pageSize),
       offset: parseInt(offset),
       order: [['createdAt', 'DESC']]

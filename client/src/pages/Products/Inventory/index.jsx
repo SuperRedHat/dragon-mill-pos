@@ -208,15 +208,33 @@ const InventoryManagement = () => {
     
     // 应用搜索条件
     if (values.keyword) {
+      const keyword = values.keyword.toLowerCase();
       filtered = filtered.filter(p => 
-        p.name.includes(values.keyword) ||
-        p.shortName?.includes(values.keyword) ||
-        p.barcode?.includes(values.keyword)
+        p.name.toLowerCase().includes(keyword) ||
+        p.shortName?.toLowerCase().includes(keyword) ||
+        p.barcode?.includes(keyword)
       );
     }
     
     if (values.categoryId) {
-      filtered = filtered.filter(p => p.categoryId === values.categoryId);
+      filtered = filtered.filter(p => p.categoryId === parseInt(values.categoryId));
+    }
+    
+    if (values.stockStatus) {
+      switch (values.stockStatus) {
+        case 'out':
+          filtered = filtered.filter(p => p.stock === 0);
+          break;
+        case 'low':
+          filtered = filtered.filter(p => p.stock > 0 && p.stock <= p.minStock);
+          break;
+        case 'normal':
+          filtered = filtered.filter(p => p.stock > p.minStock && p.stock < p.maxStock);
+          break;
+        case 'high':
+          filtered = filtered.filter(p => p.stock >= p.maxStock);
+          break;
+      }
     }
     
     setFilteredProducts(filtered);
@@ -882,15 +900,49 @@ const InventoryManagement = () => {
             form={searchForm}
             layout="inline"
             onFinish={handleSearch}
+            style={{ marginBottom: 16 }}
           >
-            {/* ... 其他表单项 ... */}
+            <Form.Item name="keyword">
+              <Input
+                placeholder="搜索商品名称/条码"
+                prefix={<SearchOutlined />}
+                allowClear
+                style={{ width: 200 }}
+              />
+            </Form.Item>
+            
+            <Form.Item name="categoryId">
+              <Select
+                placeholder="选择分类"
+                allowClear
+                style={{ width: 150 }}
+              >
+                <Option value="">全部分类</Option>
+                {categories.map(cat => (
+                  <Option key={cat.id} value={cat.id}>{cat.name}</Option>
+                ))}
+              </Select>
+            </Form.Item>
+            
+            <Form.Item name="stockStatus">
+              <Select
+                placeholder="库存状态"
+                allowClear
+                style={{ width: 120 }}
+              >
+                <Option value="out">缺货</Option>
+                <Option value="low">库存不足</Option>
+                <Option value="normal">库存正常</Option>
+                <Option value="high">库存充足</Option>
+              </Select>
+            </Form.Item>
             
             <Form.Item>
               <Space>
-                <Button type="primary" htmlType="submit">
+                <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>
                   查询
                 </Button>
-                <Button onClick={handleResetSearch}>
+                <Button onClick={handleResetSearch} icon={<ReloadOutlined />}>
                   重置
                 </Button>
                 <Button 
@@ -900,11 +952,10 @@ const InventoryManagement = () => {
                   刷新
                 </Button>
                 
-                {/* 修改批量补货按钮的显示逻辑 */}
+                {/* 批量补货和导出按钮保持不变 */}
                 {isAdmin && (
                   <>
                     {selectedProducts.length > 0 ? (
-                      // 有选中商品时，显示选中数量
                       <Button
                         type="primary"
                         icon={<ShoppingCartOutlined />}
@@ -913,7 +964,6 @@ const InventoryManagement = () => {
                         补货选中商品 ({selectedProducts.length})
                       </Button>
                     ) : (
-                      // 没有选中商品时，显示智能补货建议
                       <Tooltip title="获取所有需要补货商品的智能建议">
                         <Button
                           icon={<ShoppingCartOutlined />}

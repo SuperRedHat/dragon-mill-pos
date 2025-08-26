@@ -61,21 +61,33 @@ const Product = sequelize.define('Product', {
     }
   },
   stock: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.DECIMAL(10, 2),  // 改为支持小数
     defaultValue: 0,
-    comment: '库存'
+    comment: '库存',
+    get() {
+      const value = this.getDataValue('stock');
+      return value ? parseFloat(value) : 0;
+    }
   },
   minStock: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.DECIMAL(10, 2),  // 改为支持小数
     defaultValue: 0,
     field: 'min_stock',
-    comment: '最低库存'
+    comment: '最低库存',
+    get() {
+      const value = this.getDataValue('minStock');
+      return value ? parseFloat(value) : 0;
+    }
   },
   maxStock: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.DECIMAL(10, 2),  // 改为支持小数
     defaultValue: 1000,
     field: 'max_stock',
-    comment: '最高库存'
+    comment: '最高库存',
+    get() {
+      const value = this.getDataValue('maxStock');
+      return value ? parseFloat(value) : 1000;
+    }
   },
   status: {
     type: DataTypes.ENUM('on_sale', 'off_sale'),
