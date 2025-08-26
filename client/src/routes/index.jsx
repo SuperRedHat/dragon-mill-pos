@@ -14,6 +14,8 @@ const Profile = lazy(() => import('@/pages/Profile'));
 const ProductCategories = lazy(() => import('@/pages/Products/Categories'));
 const ProductList = lazy(() => import('@/pages/Products/List'));
 const InventoryManagement = lazy(() => import('@/pages/Products/Inventory'));
+const Cashier = lazy(() => import('@/pages/Cashier')); // 添加收银台组件
+const Orders = lazy(() => import('@/pages/Orders'));
 
 // 全局加载组件
 const PageLoading = () => (
@@ -108,7 +110,10 @@ const Router = () => {
           <Route path="dashboard" element={<Dashboard />} />
           
           {/* 收银台 */}
-          <Route path="cashier" element={<ComingSoon title="收银台" />} />
+          <Route path="cashier" element={<Cashier />} />
+
+          {/* 订单管理 */}
+          <Route path="orders" element={<Orders />} />
           
           {/* 会员管理 */}
           <Route path="members">

@@ -92,9 +92,19 @@ const MainLayout = () => {
         label: '仪表盘',
       },
       {
-        key: '/cashier',
+        key: '/cashier-group',
         icon: <ShoppingCartOutlined />,
-        label: '收银台',
+        label: '收银管理',
+        children: [
+          {
+            key: '/cashier',
+            label: '收银台',
+          },
+          {
+            key: '/orders',
+            label: '订单管理',
+          },
+        ],
       },
       {
         key: '/members',

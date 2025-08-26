@@ -8,6 +8,7 @@
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "test": "jest",
+    "db:init": "node src/database/init.js", 
     "db:migrate": "node src/database/migrate.js",
     "db:seed": "node src/database/seed.js"
   },

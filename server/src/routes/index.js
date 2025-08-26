@@ -4,6 +4,9 @@ import userRoutes from './users.js';
 import profileRoutes from './profile.js';
 import productCategoryRoutes from './productCategories.js'; 
 import productRoutes from './products.js';
+import memberRoutes from './members.js';
+import cashierRoutes from './cashier.js';
+import orderRoutes from './orders.js';
 
 const router = express.Router();
 
@@ -30,6 +33,12 @@ router.use('/product-categories', productCategoryRoutes);
 
 // 商品路由
 router.use('/products', productRoutes);
+
+router.use('/members', memberRoutes);
+
+router.use('/cashier', cashierRoutes);
+
+router.use('/orders', orderRoutes);
 
 // TODO: 后续在这里导入其他路由模块
 // import productRoutes from './product.js';
