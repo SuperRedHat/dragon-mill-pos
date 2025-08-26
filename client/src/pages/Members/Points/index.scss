@@ -1,0 +1,114 @@
+.points-management-page {
+  .ant-card {
+    min-height: calc(100vh - 120px);
+  }
+
+  // 规则卡片样式
+  .rule-item {
+    padding: 6px 8px;
+    background: #fafafa;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    height: 32px;
+    
+    .rule-label {
+      color: #666;
+      font-size: 12px;
+      margin-right: 4px;
+    }
+    
+    .rule-value {
+      font-size: 12px;
+      color: #333;
+      
+      strong {
+        color: #1890ff;
+        font-size: 14px;
+        margin: 0 2px;
+      }
+    }
+  }
+
+  // 统计卡片样式 - 紧凑版
+  .stat-card {
+    background: #fff;
+    border: 1px solid #f0f0f0;
+    border-radius: 4px;
+    padding: 12px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    transition: all 0.3s;
+
+    &:hover {
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.09);
+    }
+
+    &.stat-success {
+      .stat-value {
+        color: #52c41a;
+      }
+    }
+
+    &.stat-error {
+      .stat-value {
+        color: #ff4d4f;
+      }
+    }
+
+    .stat-content {
+      width: 100%;
+
+      .stat-title {
+        font-size: 12px;
+        color: #999;
+        margin-bottom: 4px;
+      }
+
+      .stat-value {
+        font-size: 20px;
+        font-weight: bold;
+        color: #1890ff;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+
+        .stat-icon {
+          font-size: 16px;
+        }
+      }
+    }
+  }
+
+  // 表格样式
+  .ant-table {
+    .ant-table-cell {
+      font-size: 13px;
+      padding: 8px 12px;
+    }
+  }
+
+  // 标签栏样式
+  .ant-tabs-tab {
+    padding: 8px 16px;
+  }
+
+  // 卡片标题栏
+  .ant-card-head {
+    min-height: 40px;
+    padding: 0 16px;
+    
+    .ant-card-head-title {
+      font-size: 14px;
+      padding: 8px 0;
+    }
+  }
+
+  // 小卡片样式
+  .ant-card-small {
+    .ant-card-body {
+      padding: 12px;
+    }
+  }
+}

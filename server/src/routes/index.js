@@ -7,6 +7,7 @@ import productRoutes from './products.js';
 import memberRoutes from './members.js';
 import cashierRoutes from './cashier.js';
 import orderRoutes from './orders.js';
+import pointsRoutes from './points.js';
 
 const router = express.Router();
 
@@ -39,6 +40,8 @@ router.use('/members', memberRoutes);
 router.use('/cashier', cashierRoutes);
 
 router.use('/orders', orderRoutes);
+
+router.use('/points', pointsRoutes);
 
 // TODO: 后续在这里导入其他路由模块
 // import productRoutes from './product.js';

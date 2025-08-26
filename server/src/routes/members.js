@@ -59,6 +59,56 @@ router.get('/', async (req, res) => {
   }
 });
 
+// 搜索会员（用于收银台快速搜索）
+router.get('/search', async (req, res) => {
+  try {
+    const { keyword = '' } = req.query;
+    
+    if (!keyword || keyword.length < 1) {
+      return res.json({
+        success: true,
+        data: []
+      });
+    }
+    
+    // 搜索会员号、姓名、手机号
+    const members = await Member.findAll({
+      where: {
+        status: 'active',
+        [Op.or]: [
+          { memberNo: { [Op.like]: `%${keyword}%` } },
+          { name: { [Op.like]: `%${keyword}%` } },
+          { phone: { [Op.like]: `%${keyword}%` } }
+        ]
+      },
+      limit: 10,  // 最多返回10条
+      order: [
+        // 优先级：完全匹配 > 开头匹配 > 包含匹配
+        sequelize.literal(`
+          CASE 
+            WHEN phone = '${keyword}' THEN 1
+            WHEN member_no = '${keyword}' THEN 2
+            WHEN name = '${keyword}' THEN 3
+            WHEN phone LIKE '${keyword}%' THEN 4
+            WHEN member_no LIKE '${keyword}%' THEN 5
+            WHEN name LIKE '${keyword}%' THEN 6
+            ELSE 7
+          END
+        `),
+        ['createdAt', 'DESC']
+      ]
+    });
+    
+    res.json({
+      success: true,
+      data: members
+    });
+  } catch (error) {
+    logger.error('搜索会员失败:', error);
+    res.status(500).json({ error: '搜索会员失败' });
+  }
+});
+
 // 根据手机号查找会员（收银台使用）
 router.get('/phone/:phone', async (req, res) => {
   try {
@@ -101,13 +151,16 @@ router.post('/', logMiddleware('会员管理', '创建会员'), async (req, res)
       return res.status(400).json({ error: '该手机号已注册' });
     }
     
-    const member = await Member.create({
+    // 处理空字符串的邮箱
+    const memberData = {
       name,
       phone,
-      birthday,
-      email,
-      remark
-    });
+      birthday: birthday || null,
+      email: email && email.trim() ? email : null,  // 空字符串转为 null
+      remark: remark || null
+    };
+    
+    const member = await Member.create(memberData);
     
     res.json({
       success: true,

@@ -1,0 +1,19 @@
+.member-list-page {
+  .ant-card {
+    min-height: calc(100vh - 120px);
+  }
+
+  .ant-statistic {
+    text-align: center;
+  }
+
+  .ant-table {
+    .ant-table-cell {
+      font-size: 13px;
+    }
+  }
+
+  .ant-descriptions {
+    margin-bottom: 16px;
+  }
+}

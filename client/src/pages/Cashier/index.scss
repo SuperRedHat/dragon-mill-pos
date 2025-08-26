@@ -182,3 +182,20 @@
     }
   }
 }
+
+.member-section {
+  .ant-select-dropdown {
+    .ant-select-item-option-content {
+      padding: 8px 0;
+    }
+  }
+  
+  .member-info {
+    background: #f8f9fa;
+    border: 1px solid #e8e8e8;
+    
+    .ant-card-body {
+      padding: 12px;
+    }
+  }
+}

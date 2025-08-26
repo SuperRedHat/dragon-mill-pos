@@ -32,8 +32,20 @@ const Member = sequelize.define('Member', {
   email: {
     type: DataTypes.STRING(100),
     comment: '邮箱',
+    allowNull: true,  // 明确允许 null
     validate: {
-      isEmail: true
+      isEmail: {
+        msg: '邮箱格式不正确'
+      },
+      notEmpty: {
+        msg: '邮箱不能为空字符串'
+      },
+      // 自定义验证：如果有值则验证邮箱格式，否则允许 null
+      isValidEmail(value) {
+        if (value === '') {
+          throw new Error('邮箱不能为空字符串，请留空或填写有效邮箱');
+        }
+      }
     }
   },
   points: {
@@ -71,7 +83,7 @@ const Member = sequelize.define('Member', {
   timestamps: true,
   underscored: true,
   hooks: {
-    beforeCreate: async (member) => {
+    beforeValidate: async (member) => {
       // 生成会员号
       if (!member.memberNo) {
         const count = await Member.count();

@@ -24,3 +24,8 @@ export const updateMember = (id, data) => {
 export const adjustMemberPoints = (id, data) => {
   return request.post(`/members/${id}/points`, data);
 };
+
+// 搜索会员（自动完成）
+export const searchMembers = (keyword) => {
+  return request.get('/members/search', { params: { keyword } });
+};

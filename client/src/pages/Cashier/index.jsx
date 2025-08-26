@@ -24,6 +24,7 @@ import {
   AutoComplete,
   Spin
 } from 'antd';
+import dayjs from 'dayjs';
 import {
   SearchOutlined,
   ShoppingCartOutlined,
@@ -39,10 +40,11 @@ import {
   WechatOutlined,
   DollarOutlined,
   GiftOutlined,
-  BarcodeOutlined
+  BarcodeOutlined,
+  CalendarOutlined
 } from '@ant-design/icons';
 import { getCashierProducts, searchProducts, checkout, getTodayStats } from '@/api/cashier';
-import { getMemberByPhone } from '@/api/members';
+import { getMemberByPhone, searchMembers } from '@/api/members';
 import './index.scss';
 
 const { Search } = Input;
@@ -68,7 +70,12 @@ const Cashier = () => {
   const [paymentForm] = Form.useForm();
   const { message, modal } = App.useApp();
   const searchInputRef = useRef(null);
-  const memberSearchRef = useRef(null);
+  //const memberSearchRef = useRef(null);
+
+  const [memberSearchValue, setMemberSearchValue] = useState('');
+  const [memberSearchOptions, setMemberSearchOptions] = useState([]);
+  const [memberSearchLoading, setMemberSearchLoading] = useState(false);
+  const searchTimeoutRef = useRef(null);
 
   // 获取商品列表
   const fetchProducts = async () => {
@@ -158,6 +165,91 @@ const Cashier = () => {
     });
   };
 
+  const handleMemberSearch = async (value) => {
+    setMemberSearchValue(value);
+    
+    // 清除之前的定时器
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    if (!value || value.length < 1) {
+      setMemberSearchOptions([]);
+      return;
+    }
+    
+    // 防抖处理，300ms后才搜索
+    searchTimeoutRef.current = setTimeout(async () => {
+      setMemberSearchLoading(true);
+      try {
+        const res = await searchMembers(value);
+        if (res.success) {
+          const options = res.data.map(member => ({
+            value: member.id.toString(),
+            label: (
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontWeight: 'bold' }}>{member.name}</div>
+                  <div style={{ fontSize: '12px', color: '#666' }}>
+                    {member.phone} | 会员号: {member.memberNo}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <Tag color="gold" style={{ marginBottom: 2 }}>
+                    <GiftOutlined /> {member.points}积分
+                  </Tag>
+                  <div style={{ fontSize: '12px', color: '#52c41a' }}>
+                    累计: ¥{parseFloat(member.totalConsumption || 0).toFixed(2)}
+                  </div>
+                </div>
+              </div>
+            ),
+            member: member  // 保存完整的会员信息
+          }));
+          setMemberSearchOptions(options);
+        }
+      } catch (error) {
+        console.error('搜索会员失败:', error);
+        setMemberSearchOptions([]);
+      } finally {
+        setMemberSearchLoading(false);
+      }
+    }, 300);
+  };
+
+  // 选择会员
+  const handleSelectMember = (value, option) => {
+    const member = option.member;
+    setSelectedMember(member);
+    message.success(`会员识别成功：${member.name}`);
+    
+    // 重新计算价格
+    if (cart.length > 0) {
+      setCart(cart.map(item => {
+        const price = member && item.memberPrice ? item.memberPrice : item.price;
+        return {
+          ...item,
+          subtotal: price * item.quantity
+        };
+      }));
+    }
+  };
+
+  // 清除会员
+  const handleClearMember = () => {
+    setSelectedMember(null);
+    setMemberSearchValue('');
+    setMemberSearchOptions([]);
+    
+    // 恢复原价
+    if (cart.length > 0) {
+      setCart(cart.map(item => ({
+        ...item,
+        subtotal: item.price * item.quantity
+      })));
+    }
+  };
+
   // 搜索商品 - 修改搜索逻辑
   const handleProductSearch = async (value) => {
     setSearchKeyword(value);
@@ -201,37 +293,6 @@ const Cashier = () => {
     }
   };
 
-  // 查找会员
-  const handleMemberSearch = async (phone) => {
-    if (!phone) {
-      setSelectedMember(null);
-      return;
-    }
-    
-    try {
-      const res = await getMemberByPhone(phone);
-      if (res.success) {
-        setSelectedMember(res.data);
-        message.success(`会员识别成功：${res.data.name}`);
-        
-        // 重新计算价格
-        if (cart.length > 0) {
-          setCart(cart.map(item => {
-            const price = res.data && item.memberPrice ? item.memberPrice : item.price;
-            return {
-              ...item,
-              subtotal: price * item.quantity
-            };
-          }));
-        }
-      }
-    } catch (error) {
-      if (error.response?.status === 404) {
-        message.warning('会员不存在');
-        setSelectedMember(null);
-      }
-    }
-  };
 
   // 计算总金额
   const calculateTotal = () => {
@@ -322,9 +383,6 @@ const Cashier = () => {
         setSelectedMember(null);
         setPaymentModalVisible(false);
         paymentForm.resetFields();
-        if (memberSearchRef.current?.input) {
-        memberSearchRef.current.input.value = '';
-        }
         
         clearSearch();
         fetchTodayStats();
@@ -567,27 +625,70 @@ const Cashier = () => {
           <Card className="cart-card">
             {/* 会员信息 */}
             <div className="member-section">
-              <Search
-                ref={memberSearchRef}
-                placeholder="输入会员手机号"
-                prefix={<UserOutlined />}
-                enterButton="查找"
+              <AutoComplete
+                value={memberSearchValue}
+                options={memberSearchOptions}
                 onSearch={handleMemberSearch}
+                onSelect={handleSelectMember}
+                onChange={(value) => {
+                  setMemberSearchValue(value);
+                  if (!value) {
+                    handleClearMember();
+                  }
+                }}
+                style={{ width: '100%' }}
                 allowClear
-              />
+                onClear={handleClearMember}
+              >
+                <Input
+                  placeholder="输入会员号/姓名/手机号搜索"
+                  prefix={<UserOutlined />}
+                  suffix={
+                    memberSearchLoading ? <Spin size="small" /> : null
+                  }
+                />
+              </AutoComplete>
+              
               {selectedMember && (
-                <Card size="small" className="member-info">
-                  <Space>
-                    <Avatar icon={<UserOutlined />} />
-                    <div>
-                      <div><strong>{selectedMember.name}</strong></div>
+                <Card size="small" className="member-info" style={{ marginTop: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Space>
+                      <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }}>
+                        {selectedMember.name[0]}
+                      </Avatar>
                       <div>
-                        <Tag color="gold">
-                          <GiftOutlined /> {selectedMember.points} 积分
-                        </Tag>
+                        <div style={{ fontWeight: 'bold', fontSize: '14px' }}>
+                          {selectedMember.name}
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#666' }}>
+                          {selectedMember.phone} | {selectedMember.memberNo}
+                        </div>
+                      </div>
+                    </Space>
+                    <div style={{ textAlign: 'right' }}>
+                      <Tag color="gold" style={{ marginBottom: 4 }}>
+                        <GiftOutlined /> {selectedMember.points} 积分
+                      </Tag>
+                      <div style={{ fontSize: '12px', color: '#52c41a' }}>
+                        累计消费: ¥{parseFloat(selectedMember.totalConsumption || 0).toFixed(2)}
                       </div>
                     </div>
-                  </Space>
+                  </div>
+                  <Divider style={{ margin: '8px 0' }} />
+                  <div style={{ fontSize: '12px', color: '#666' }}>
+                    <Row>
+                      <Col span={12}>
+                        入会日期: {dayjs(selectedMember.joinDate).format('YYYY-MM-DD')}
+                      </Col>
+                      <Col span={12} style={{ textAlign: 'right' }}>
+                        {selectedMember.birthday && (
+                          <span>
+                            <CalendarOutlined /> 生日: {dayjs(selectedMember.birthday).format('MM-DD')}
+                          </span>
+                        )}
+                      </Col>
+                    </Row>
+                  </div>
                 </Card>
               )}
             </div>
