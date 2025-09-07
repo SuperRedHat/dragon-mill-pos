@@ -1,9 +1,9 @@
 import { DataTypes } from 'sequelize';
 import { sequelize } from '../config/database.js';
 import Recipe from './Recipe.js';
-import Material from './Material.js';
+import Product from './Product.js';
 
-const RecipeMaterial = sequelize.define('RecipeMaterial', {
+const RecipeProduct = sequelize.define('RecipeProduct', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
@@ -15,11 +15,11 @@ const RecipeMaterial = sequelize.define('RecipeMaterial', {
     field: 'recipe_id',
     comment: '配方ID'
   },
-  materialId: {
+  productId: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    field: 'material_id',
-    comment: '材料ID'
+    field: 'product_id',
+    comment: '商品ID'
   },
   percentage: {
     type: DataTypes.DECIMAL(5, 2),
@@ -43,34 +43,34 @@ const RecipeMaterial = sequelize.define('RecipeMaterial', {
     }
   }
 }, {
-  tableName: 'recipe_materials',
+  tableName: 'recipe_products',
   timestamps: true,
   underscored: true
 });
 
 // 设置关联关系
-Recipe.belongsToMany(Material, {
-  through: RecipeMaterial,
+Recipe.belongsToMany(Product, {
+  through: RecipeProduct,
   foreignKey: 'recipeId',
-  otherKey: 'materialId',
-  as: 'materials'
+  otherKey: 'productId',
+  as: 'products'
 });
 
-Material.belongsToMany(Recipe, {
-  through: RecipeMaterial,
-  foreignKey: 'materialId',
+Product.belongsToMany(Recipe, {
+  through: RecipeProduct,
+  foreignKey: 'productId',
   otherKey: 'recipeId',
   as: 'recipes'
 });
 
-RecipeMaterial.belongsTo(Recipe, {
+RecipeProduct.belongsTo(Recipe, {
   foreignKey: 'recipeId',
   as: 'recipe'
 });
 
-RecipeMaterial.belongsTo(Material, {
-  foreignKey: 'materialId',
-  as: 'material'
+RecipeProduct.belongsTo(Product, {
+  foreignKey: 'productId',
+  as: 'product'
 });
 
-export default RecipeMaterial;
+export default RecipeProduct;

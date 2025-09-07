@@ -45,7 +45,7 @@ import {
   copyRecipe,
   calculateRecipePrice
 } from '@/api/recipes';
-import { getMaterialList } from '@/api/materials';
+import { getProductList } from '@/api/products';
 import './index.scss';
 
 const { Option } = Select;
@@ -54,7 +54,7 @@ const { TextArea } = Input;
 const RecipeList = () => {
   const [loading, setLoading] = useState(false);
   const [recipes, setRecipes] = useState([]);
-  const [materials, setMaterials] = useState([]);
+  const [products, setMaterials] = useState([]);
   const [activeTab, setActiveTab] = useState('public');
   const [modalVisible, setModalVisible] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState(null);
@@ -86,28 +86,30 @@ const RecipeList = () => {
     }
   };
 
-  // 获取材料列表
-  const fetchMaterials = async () => {
-    try {
-      const res = await getMaterialList({
-        page: 1,
-        pageSize: 100,
-        status: 'active'
-      });
-      if (res.success) {
-        setMaterials(res.data.list);
-      }
-    } catch (error) {
-      message.error('获取材料列表失败');
+
+
+ // 获取商品列表（用作配方材料）
+const fetchProducts = async () => {
+  try {
+    const res = await getProductList({
+      page: 1,
+      pageSize: 100,
+      status: 'on_sale'
+    });
+    if (res.success) {
+      setProducts(res.data.list);
     }
-  };
+  } catch (error) {
+    message.error('获取商品列表失败');
+  }
+};
 
   useEffect(() => {
     fetchRecipes();
   }, [activeTab]);
 
   useEffect(() => {
-    fetchMaterials();
+    fetchProducts();
   }, []);
 
   // 打开新建/编辑弹窗
@@ -116,9 +118,9 @@ const RecipeList = () => {
     setModalVisible(true);
     
     if (recipe) {
-      const materialsData = recipe.materials?.map(m => ({
-        materialId: m.id,
-        percentage: m.RecipeMaterial?.percentage || 0
+      const materialsData = recipe.products?.map(m => ({
+        productId: m.id,
+        percentage: m.RecipeProduct?.percentage || 0
       })) || [];
       
       form.setFieldsValue({
@@ -498,11 +500,11 @@ const RecipeList = () => {
                     >
                       <Form.Item
                         {...restField}
-                        name={[name, 'materialId']}
-                        rules={[{ required: true, message: '请选择材料' }]}
+                        name={[name, 'productId']}
+                        rules={[{ required: true, message: '请选择商品' }]}
                       >
                         <Select
-                          placeholder="选择材料"
+                          placeholder="选择商品"
                           style={{ width: 200 }}
                           showSearch
                           optionFilterProp="children"

@@ -9,9 +9,8 @@ import Member from '../models/Member.js';
 import Order from '../models/Order.js';
 import OrderItem from '../models/OrderItem.js';
 import { logger } from '../utils/logger.js';
-import Material from '../models/Material.js';
 import Recipe from '../models/Recipe.js';
-import RecipeMaterial from '../models/RecipeMaterial.js';
+import RecipeProduct from '../models/RecipeProduct.js';
 
 
 

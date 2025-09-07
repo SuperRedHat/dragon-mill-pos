@@ -11,15 +11,14 @@ import { authenticate } from '../middleware/auth.js';
 import { logOperation } from '../utils/operationLog.js';
 import { logger } from '../utils/logger.js';
 import Recipe from '../models/Recipe.js';
-import Material from '../models/Material.js';
-import RecipeMaterial from '../models/RecipeMaterial.js';
+import RecipeProduct from '../models/RecipeProduct.js';
 
 const router = express.Router();
 
 // 所有接口都需要认证
 router.use(authenticate);
 
-// 在创建订单之前，生成订单号
+// 生成订单号
 const generateOrderNo = () => {
   const date = new Date();
   const year = date.getFullYear();
@@ -48,8 +47,8 @@ router.get('/recipes/for-sale', async (req, res) => {
     const recipes = await Recipe.findAll({
       where,
       include: [{
-        model: Material,
-        as: 'materials',
+        model: Product,
+        as: 'products',
         through: { attributes: ['percentage'] }
       }],
       order: [['usageCount', 'DESC'], ['name', 'ASC']]
@@ -75,8 +74,9 @@ router.post('/recipes/calculate', async (req, res) => {
     
     const recipe = await Recipe.findByPk(recipeId, {
       include: [{
-        model: Material,
-        as: 'materials'
+        model: Product,
+        as: 'products',
+        through: { attributes: ['percentage'] }
       }]
     });
     
@@ -89,9 +89,10 @@ router.post('/recipes/calculate', async (req, res) => {
     
     // 计算材料成本
     let materialCost = 0;
-    for (const material of recipe.materials) {
-      const materialWeight = weight * material.RecipeMaterial.percentage / 100;
-      materialCost += materialWeight * material.price / 1000;
+    for (const product of recipe.products) {
+      const materialWeight = weight * product.RecipeProduct.percentage / 100;
+      const unitPrice = product.cost || product.price;
+      materialCost += materialWeight * unitPrice / 1000;
     }
     
     const totalPrice = materialCost + recipe.processingFee;
@@ -116,7 +117,6 @@ router.post('/recipes/calculate', async (req, res) => {
   }
 });
 
-
 // 创建订单（收银结算）
 router.post('/checkout', async (req, res) => {
   const t = await sequelize.transaction();
@@ -125,12 +125,14 @@ router.post('/checkout', async (req, res) => {
     const {
       memberId,
       items,
+      recipes,
       paymentMethod,
       pointsUsed = 0,
       remark
     } = req.body;
     
-    if (!items || items.length === 0) {
+    // 验证购物车
+    if ((!items || items.length === 0) && (!recipes || recipes.length === 0)) {
       await t.rollback();
       return res.status(400).json({ 
         success: false,
@@ -175,67 +177,90 @@ router.post('/checkout', async (req, res) => {
     let totalAmount = 0;
     const orderItems = [];
     
-    // 处理每个商品
-    for (const item of items) {
-      const product = await Product.findByPk(item.productId, { transaction: t });
-      
-      if (!product) {
-        await t.rollback();
-        return res.status(404).json({ 
-          success: false,
-          error: `商品不存在: ID=${item.productId}` 
+    // 处理普通商品
+    if (items && items.length > 0) {
+      for (const item of items) {
+        const product = await Product.findByPk(item.productId, { transaction: t });
+        
+        if (!product) {
+          await t.rollback();
+          return res.status(404).json({ 
+            success: false,
+            error: `商品不存在: ID=${item.productId}` 
+          });
+        }
+        
+        // 检查库存
+        if (product.stock < item.quantity) {
+          await t.rollback();
+          return res.status(400).json({ 
+            success: false,
+            error: `商品库存不足: ${product.name}` 
+          });
+        }
+        
+        // 计算价格（会员价或普通价）
+        const price = (member && product.memberPrice) ? product.memberPrice : product.price;
+        const subtotal = price * item.quantity;
+        totalAmount += subtotal;
+        
+        orderItems.push({
+          productId: product.id,
+          productName: product.name,
+          price,
+          quantity: item.quantity,
+          subtotal,
+          unit: product.unit
         });
+        
+        // 扣减库存
+        const beforeStock = product.stock;
+        const afterStock = beforeStock - item.quantity;
+        
+        await product.update({ stock: afterStock }, { transaction: t });
+        
+        // 记录库存变动
+        await StockRecord.create({
+          productId: product.id,
+          type: 'sale',
+          quantity: -item.quantity,
+          beforeStock,
+          afterStock,
+          remark: `销售出库，订单号: ${generateOrderNo()}`,
+          operatorId: req.user.id,
+          operatorName: req.user.name
+        }, { transaction: t });
       }
-      
-      // 检查库存
-      if (product.stock < item.quantity) {
-        await t.rollback();
-        return res.status(400).json({ 
-          success: false,
-          error: `商品库存不足: ${product.name}` 
-        });
-      }
-      
-      // 计算价格（会员价或普通价）
-      const price = (member && product.memberPrice) ? product.memberPrice : product.price;
-      const subtotal = price * item.quantity;
-      totalAmount += subtotal;
-      
-      orderItems.push({
-        productId: product.id,
-        productName: product.name,
-        price,
-        quantity: item.quantity,
-        subtotal,
-        unit: product.unit
-      });
-      
-      // 扣减库存
-      const beforeStock = product.stock;
-      const afterStock = beforeStock - item.quantity;
-      
-      await product.update({ stock: afterStock }, { transaction: t });
-      
-      // 记录库存变动
-      await StockRecord.create({
-        productId: product.id,
-        type: 'sale',
-        quantity: -item.quantity,
-        beforeStock,
-        afterStock,
-        remark: `销售出库，订单号: ${Date.now()}`,
-        operatorId: req.user.id,
-        operatorName: req.user.name
-      }, { transaction: t });
     }
     
     // 处理配方
-    if (req.body.recipes && req.body.recipes.length > 0) {
-      for (const recipeItem of req.body.recipes) {
+    if (recipes && recipes.length > 0) {
+      for (const recipeItem of recipes) {
+        // 处理临时配方
+        if (recipeItem.recipeId && recipeItem.recipeId.toString().startsWith('temp-')) {
+          // 临时配方直接使用前端传来的价格，不扣减库存
+          const recipePrice = recipeItem.price || 10;
+          const subtotal = recipePrice * recipeItem.quantity;
+          totalAmount += subtotal;
+          
+          orderItems.push({
+            productId: null,
+            productName: `临时配方：${recipeItem.name || '自定义配方'}`,
+            price: recipePrice,
+            quantity: recipeItem.quantity,
+            subtotal,
+            unit: '份'
+          });
+          
+          continue; // 跳过后续处理
+        }
+        
+        // 处理正常配方
         const recipe = await Recipe.findByPk(recipeItem.recipeId, {
           include: [{
-            model: Material,
-            as: 'materials'
+            model: Product,
+            as: 'products',
+            through: { attributes: ['percentage'] }
           }],
           transaction: t
         });
@@ -248,28 +273,46 @@ router.post('/checkout', async (req, res) => {
           });
         }
         
-        // 检查材料库存并扣减
-        for (const material of recipe.materials) {
-          const materialWeight = recipeItem.weight * material.RecipeMaterial.percentage / 100;
+        // 检查商品库存并扣减
+        for (const product of recipe.products) {
+          const materialWeight = recipeItem.weight * product.RecipeProduct.percentage / 100;
+          const materialQuantity = materialWeight / 1000; // 转换为公斤或其他单位
           
-          if (material.stock < materialWeight / 1000) {
+          if (product.stock < materialQuantity) {
             await t.rollback();
             return res.status(400).json({ 
               success: false,
-              error: `材料库存不足: ${material.name}` 
+              error: `商品库存不足: ${product.name}` 
             });
           }
           
-          await material.update({
-            stock: material.stock - materialWeight / 1000
+          // 扣减库存
+          const beforeStock = product.stock;
+          const afterStock = beforeStock - materialQuantity;
+          
+          await product.update({
+            stock: afterStock
+          }, { transaction: t });
+          
+          // 记录库存变动
+          await StockRecord.create({
+            productId: product.id,
+            type: 'sale',
+            quantity: -materialQuantity,
+            beforeStock,
+            afterStock,
+            remark: `配方使用：${recipe.name}`,
+            operatorId: req.user.id,
+            operatorName: req.user.name
           }, { transaction: t });
         }
         
         // 计算配方价格
         let materialCost = 0;
-        for (const material of recipe.materials) {
-          const materialWeight = recipeItem.weight * material.RecipeMaterial.percentage / 100;
-          materialCost += materialWeight * material.price / 1000;
+        for (const product of recipe.products) {
+          const materialWeight = recipeItem.weight * product.RecipeProduct.percentage / 100;
+          const unitPrice = product.cost || product.price;
+          materialCost += materialWeight * unitPrice / 1000;
         }
         
         const recipePrice = materialCost + recipe.processingFee;
@@ -278,14 +321,12 @@ router.post('/checkout', async (req, res) => {
         
         // 添加到订单项
         orderItems.push({
-          recipeId: recipe.id,
+          productId: null,
           productName: `配方：${recipe.name}`,
           price: recipePrice,
           quantity: recipeItem.quantity,
           subtotal,
-          unit: '份',
-          isRecipe: true,
-          recipeWeight: recipeItem.weight
+          unit: '份'
         });
         
         // 更新配方使用次数
@@ -294,7 +335,6 @@ router.post('/checkout', async (req, res) => {
         }, { transaction: t });
       }
     }
-
 
     // 计算积分抵扣金额（假设100积分=1元）
     const pointsValue = pointsUsed / 100;
@@ -328,7 +368,7 @@ router.post('/checkout', async (req, res) => {
         price: item.price,
         quantity: item.quantity,
         subtotal: item.subtotal,
-        unit: item.unit  // 添加单位信息
+        unit: item.unit
       }, { transaction: t });
     }
     
@@ -424,7 +464,7 @@ router.get('/products/available', async (req, res) => {
     const products = await Product.findAll({
       where: { status: 'on_sale' },
       include: [{
-        model: ProductCategory,  // 直接使用导入的 ProductCategory
+        model: ProductCategory,
         as: 'category',
         attributes: ['id', 'name']
       }],

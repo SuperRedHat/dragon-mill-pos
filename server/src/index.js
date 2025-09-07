@@ -14,7 +14,6 @@ import { connectRedis } from './config/redis.js';
 import { ensureUploadDirs } from './utils/ensureDir.js';
 import routes from './routes/index.js';
 import testRoutes from './routes/test.js';
-import materialsRouter from './routes/materials.js';
 import recipesRouter from './routes/recipes.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -39,7 +38,6 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 
-app.use('/api/v1/materials', materialsRouter);
 app.use('/api/v1/recipes', recipesRouter);
 // 日志中间件
 if (process.env.NODE_ENV !== 'test') {

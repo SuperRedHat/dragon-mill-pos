@@ -22,7 +22,8 @@ import {
   Statistic,
   Typography,
   AutoComplete,
-  Spin
+  Spin,
+  Select
 } from 'antd';
 import dayjs from 'dayjs';
 import {
@@ -48,11 +49,13 @@ import {
 import { getCashierProducts, searchProducts, checkout, getTodayStats } from '@/api/cashier';
 import { getRecipesForSale, calculateRecipeForCashier } from '@/api/recipes';
 import { getMemberByPhone, searchMembers } from '@/api/members';
+import { getProductList } from '@/api/products';
 import './index.scss';
-import { getMaterialList } from '@/api/materials';
+
 
 const { Search } = Input;
 const { Text, Title } = Typography;
+const { Option } = Select;
 
 
 const Cashier = () => {
@@ -79,8 +82,8 @@ const Cashier = () => {
 
   // 在其他 state 后面添加
   const [createRecipeModalVisible, setCreateRecipeModalVisible] = useState(false);
-  const [materials, setMaterials] = useState([]);
   const [tempRecipeForm] = Form.useForm();
+  const [recipeProducts, setRecipeProducts] = useState([]);
 
   const [activeTab, setActiveTab] = useState('all'); // 当前激活的标签
   
@@ -178,13 +181,14 @@ const Cashier = () => {
       const materialList = [];
       
       for (const item of values.materials) {
-        const material = materials.find(m => m.id === item.materialId);
-        if (material) {
+        const product = recipeProducts.find(p => p.id === item.productId);  // 使用 recipeProducts
+        if (product) {
           const materialWeight = values.weight * item.percentage / 100;
-          const cost = materialWeight * material.price / 1000;
+          const unitPrice = product.cost || product.price;  // 使用成本价或售价
+          const cost = materialWeight * unitPrice / 1000;
           materialCost += cost;
           materialList.push({
-            ...material,
+            ...product,
             percentage: item.percentage,
             weight: materialWeight,
             cost
@@ -231,11 +235,26 @@ const Cashier = () => {
     }
   };
 
+  // 获取可用作配方材料的商品
+  const fetchRecipeProducts = async () => {
+    try {
+      const res = await getProductList({ 
+        status: 'on_sale', 
+        pageSize: 100 
+      });
+      if (res.success) {
+        setRecipeProducts(res.data.list);
+      }
+    } catch (error) {
+      console.error('获取商品失败:', error);
+    }
+  };
+  
   useEffect(() => {
     fetchProducts();
     fetchRecipes();
     fetchTodayStats();
-    fetchMaterials();
+    fetchRecipeProducts();
 
     // 定时刷新统计
     const timer = setInterval(fetchTodayStats, 60000); // 每分钟刷新
@@ -1218,18 +1237,18 @@ const Cashier = () => {
                     >
                       <Form.Item
                         {...restField}
-                        name={[name, 'materialId']}
-                        rules={[{ required: true, message: '请选择材料' }]}
+                        name={[name, 'productId']}  // 改为 productId
+                        rules={[{ required: true, message: '请选择商品' }]}
                       >
                         <Select
-                          placeholder="选择材料"
+                          placeholder="选择商品"
                           style={{ width: 200 }}
                           showSearch
                           optionFilterProp="children"
                         >
-                          {materials.map(m => (
-                            <Option key={m.id} value={m.id}>
-                              {m.name} (¥{m.price}/{m.unit})
+                          {recipeProducts.map(p => (  // 使用 recipeProducts
+                            <Option key={p.id} value={p.id}>
+                              {p.name} (¥{p.price}/{p.unit})
                             </Option>
                           ))}
                         </Select>

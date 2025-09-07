@@ -146,10 +146,6 @@ const MainLayout = () => {
         label: '配方管理',
         children: [
           {
-            key: '/recipes/materials',
-            label: '原材料管理',
-          },
-          {
             key: '/recipes/list',
             label: '配方列表',
           },

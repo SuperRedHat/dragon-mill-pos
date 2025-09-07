@@ -2,8 +2,8 @@ import express from 'express';
 import { Op } from 'sequelize';
 import { sequelize } from '../config/database.js';
 import Recipe from '../models/Recipe.js';
-import Material from '../models/Material.js';
-import RecipeMaterial from '../models/RecipeMaterial.js';
+import Product from '../models/Product.js';
+import RecipeProduct from '../models/RecipeProduct.js';
 import Member from '../models/Member.js';
 import { authenticate } from '../middleware/auth.js';
 import { logMiddleware } from '../utils/operationLog.js';
@@ -64,15 +64,15 @@ router.get('/', async (req, res) => {
       where,
       include: [
         {
-          model: Material,
-          as: 'materials',
+          model: Product,
+          as: 'products',
           through: { attributes: ['percentage', 'amount'] }
         },
         {
           model: Member,
           as: 'owner',
           attributes: ['id', 'name', 'phone'],
-          required: false  // 改为 false，不强制要求有 owner
+          required: false
         }
       ],
       limit: parseInt(pageSize),
@@ -119,12 +119,12 @@ router.post('/', logMiddleware('配方管理', '创建配方'), async (req, res)
     const recipe = await Recipe.create(recipeData, { transaction: t });
     
     // 添加材料
-    for (const material of materials) {
-      await RecipeMaterial.create({
+    for (const item of materials) {
+      await RecipeProduct.create({
         recipeId: recipe.id,
-        materialId: material.materialId,
-        percentage: material.percentage,
-        amount: (recipe.totalWeight * material.percentage / 100).toFixed(2)
+        productId: item.productId,  // 注意这里改为 productId
+        percentage: item.percentage,
+        amount: (recipe.totalWeight * item.percentage / 100).toFixed(2)
       }, { transaction: t });
     }
     
@@ -183,14 +183,14 @@ router.put('/:id', logMiddleware('配方管理', '更新配方'), async (req, re
     // 如果有材料更新
     if (materials) {
       // 删除原有材料
-      await RecipeMaterial.destroy({
+      await RecipeProduct.destroy({
         where: { recipeId: recipe.id },
         transaction: t
       });
       
       // 添加新材料
       for (const material of materials) {
-        await RecipeMaterial.create({
+        await RecipeProduct.create({
           recipeId: recipe.id,
           materialId: material.materialId,
           percentage: material.percentage,
@@ -250,11 +250,11 @@ router.post('/:id/copy', async (req, res) => {
     
     // 复制材料
     for (const material of sourceRecipe.materials) {
-      await RecipeMaterial.create({
+      await RecipeProduct.create({
         recipeId: newRecipe.id,
         materialId: material.id,
-        percentage: material.RecipeMaterial.percentage,
-        amount: (newRecipe.totalWeight * material.RecipeMaterial.percentage / 100).toFixed(2)
+        percentage: material.RecipeProduct.percentage,
+        amount: (newRecipe.totalWeight * material.RecipeProduct.percentage / 100).toFixed(2)
       }, { transaction: t });
     }
     
@@ -282,30 +282,25 @@ router.post('/:id/calculate-price', async (req, res) => {
     
     const recipe = await Recipe.findByPk(req.params.id, {
       include: [{
-        model: Material,
-        as: 'materials',
+        model: Product,
+        as: 'products',
         through: { attributes: ['percentage'] }
       }]
     });
-    
-    if (!recipe) {
-      return res.status(404).json({ 
-        success: false,
-        error: '配方不存在' 
-      });
-    }
-    
+
     // 计算材料成本
     let materialCost = 0;
     const materialDetails = [];
-    
-    for (const material of recipe.materials) {
-      const materialWeight = weight * material.RecipeMaterial.percentage / 100;
-      const materialPrice = materialWeight * material.price / 1000; // 假设价格按千克计算
+
+    for (const product of recipe.products) {
+      const materialWeight = weight * product.RecipeProduct.percentage / 100;
+      // 使用商品的成本价或售价
+      const unitPrice = product.cost || product.price;
+      const materialPrice = materialWeight * unitPrice / 1000; // 假设价格按千克计算
       
       materialCost += materialPrice;
       materialDetails.push({
-        name: material.name,
+        name: product.name,
         weight: materialWeight,
         price: materialPrice
       });
