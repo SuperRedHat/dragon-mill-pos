@@ -54,7 +54,7 @@ const { TextArea } = Input;
 const RecipeList = () => {
   const [loading, setLoading] = useState(false);
   const [recipes, setRecipes] = useState([]);
-  const [products, setMaterials] = useState([]);
+  const [products, setProducts] = useState([]);
   const [activeTab, setActiveTab] = useState('public');
   const [modalVisible, setModalVisible] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState(null);
@@ -96,10 +96,15 @@ const fetchProducts = async () => {
       pageSize: 100,
       status: 'on_sale'
     });
+    console.log('获取商品列表响应:', res);  // 添加日志
     if (res.success) {
       setProducts(res.data.list);
+    }else {
+      // 如果 success 为 false，显示具体错误
+      message.error(res.error || '获取商品列表失败');
     }
   } catch (error) {
+    console.error('获取商品列表错误:', error);
     message.error('获取商品列表失败');
   }
 };
@@ -509,7 +514,7 @@ const fetchProducts = async () => {
                           showSearch
                           optionFilterProp="children"
                         >
-                          {materials.map(m => (
+                          {products.map(m => (
                             <Option key={m.id} value={m.id}>
                               {m.name} (¥{m.price}/{m.unit})
                             </Option>

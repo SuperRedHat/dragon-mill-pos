@@ -17,7 +17,7 @@ const OrderItem = sequelize.define('OrderItem', {
   },
   productId: {
     type: DataTypes.INTEGER,
-    allowNull: false,
+    allowNull: true,
     field: 'product_id',
     comment: '商品ID'
   },
@@ -80,7 +80,8 @@ OrderItem.belongsTo(Order, {
 
 OrderItem.belongsTo(Product, {
   foreignKey: 'productId',
-  as: 'product'
+  as: 'product',
+  constraints: false
 });
 
 Order.hasMany(OrderItem, {
