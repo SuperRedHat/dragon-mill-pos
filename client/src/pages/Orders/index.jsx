@@ -477,11 +477,76 @@ const Orders = () => {
               rowKey="id"
               pagination={false}
               size="small"
+              expandable={{
+                expandedRowRender: (record) => {
+                  // 如果是配方项，展示材料明细
+                  if (record.isRecipe && record.recipeDetails) {
+                    return (
+                      <div style={{ padding: '12px', background: '#fafafa', borderRadius: 4 }}>
+                        <div style={{ fontWeight: 500, marginBottom: 12 }}>
+                          配方材料明细（{record.recipeDetails.weight}g）：
+                        </div>
+                        <Row gutter={[16, 8]}>
+                          {record.recipeDetails.materials?.map((material, idx) => (
+                            <Col key={idx} span={8}>
+                              <Card size="small" style={{ borderColor: '#ffe58f' }}>
+                                <div style={{ fontWeight: 500 }}>{material.name}</div>
+                                <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+                                  <Space>
+                                    <span>配比: {material.percentage}%</span>
+                                    <Divider type="vertical" />
+                                    <span>重量: {material.gramAmount?.toFixed(1)}g</span>
+                                  </Space>
+                                </div>
+                              </Card>
+                            </Col>
+                          ))}
+                        </Row>
+                        {record.recipeDetails.processingFee && (
+                          <div style={{ marginTop: 12, textAlign: 'right', color: '#666' }}>
+                            加工费: ¥{record.recipeDetails.processingFee}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+                  return null;
+                },
+                rowExpandable: (record) => record.isRecipe && record.recipeDetails
+              }}
               columns={[
+                {
+                  title: '',
+                  width: 30,
+                  render: (_, record) => {
+                    if (record.isRecipe && record.recipeDetails) {
+                      return (
+                        <Tooltip title="点击展开配方详情">
+                          <ExperimentOutlined style={{ color: '#1890ff' }} />
+                        </Tooltip>
+                      );
+                    }
+                    return null;
+                  }
+                },
                 {
                   title: '商品名称',
                   dataIndex: 'productName',
-                  key: 'productName'
+                  key: 'productName',
+                  render: (text, record) => {
+                    if (record.isRecipe) {
+                      return (
+                        <Space>
+                          <Tag color="blue" icon={<ExperimentOutlined />}>配方</Tag>
+                          <span>{text}</span>
+                          {record.recipeDetails?.weight && (
+                            <Tag color="green">{record.recipeDetails.weight}g</Tag>
+                          )}
+                        </Space>
+                      );
+                    }
+                    return text;
+                  }
                 },
                 {
                   title: '单价',

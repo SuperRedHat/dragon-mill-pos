@@ -83,7 +83,7 @@ const RecipeService = () => {
       if (res.success && res.data) {
         setSelectedMember(res.data);
         message.success(`会员识别成功：${res.data.name}`);
-        // 重新加载配方（包含私人配方）
+        // 重新加载配方（包含专属配方）
         fetchRecipes(res.data.id);
         setCurrentStep(1);
       } else {
@@ -260,7 +260,7 @@ const RecipeService = () => {
                               <Space>
                                 {recipe.name}
                                 <Tag color={recipe.type === 'public' ? 'blue' : 'green'}>
-                                  {recipe.type === 'public' ? '公共' : '私人'}
+                                  {recipe.type === 'public' ? '公共' : '专属'}
                                 </Tag>
                               </Space>
                             }

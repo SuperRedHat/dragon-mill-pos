@@ -199,3 +199,193 @@
     }
   }
 }
+
+// 会员搜索结果样式
+.member-search-result {
+  padding: 8px 0;
+  
+  .member-info {
+    .member-basic {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+      
+      strong {
+        font-size: 14px;
+        color: #333;
+      }
+      
+      .phone {
+        color: #666;
+        font-size: 13px;
+      }
+      
+      .member-no {
+        color: #999;
+        font-size: 12px;
+        margin-left: auto;
+      }
+    }
+    
+    .member-stats {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+      
+      .consumption {
+        font-size: 12px;
+        color: #52c41a;
+      }
+    }
+  }
+  
+  .member-recipes {
+    background: #f8f9fa;
+    padding: 8px;
+    border-radius: 4px;
+    margin-top: 8px;
+    
+    .recipe-quick-item {
+      margin-bottom: 8px;
+      
+      .ant-tag {
+        margin-bottom: 4px;
+        
+        &:hover {
+          transform: scale(1.05);
+          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+      }
+      
+      .recipe-materials {
+        margin-left: 8px;
+        font-size: 11px;
+        color: #666;
+        
+        .material-tag {
+          margin-right: 8px;
+          padding: 2px 6px;
+          background: #fff;
+          border-radius: 2px;
+        }
+      }
+    }
+  }
+}
+
+// AutoComplete 下拉框样式调整
+.ant-select-dropdown {
+  .ant-select-item {
+    padding: 4px 12px !important;
+    
+    &:hover {
+      .member-recipes {
+        background: #e6f7ff;
+      }
+    }
+  }
+}
+
+// 专属配方快速面板
+.member-recipes-panel {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  padding: 12px;
+  margin-top: 4px;
+  z-index: 1050;
+  max-height: 300px;
+  overflow-y: auto;
+  
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    
+    h4 {
+      margin: 0;
+      font-size: 14px;
+      color: #333;
+    }
+    
+    .close-btn {
+      cursor: pointer;
+      color: #999;
+      
+      &:hover {
+        color: #333;
+      }
+    }
+  }
+  
+  .recipe-list {
+    display: grid;
+    gap: 8px;
+    
+    .recipe-card {
+      border: 1px solid #e8e8e8;
+      border-radius: 4px;
+      padding: 8px;
+      cursor: pointer;
+      transition: all 0.3s;
+      
+      &:hover {
+        border-color: #1890ff;
+        box-shadow: 0 2px 4px rgba(24,144,255,0.2);
+      }
+      
+      .recipe-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 4px;
+        
+        .recipe-name {
+          font-weight: 500;
+          color: #333;
+        }
+        
+        .usage-count {
+          font-size: 11px;
+          color: #52c41a;
+        }
+      }
+      
+      .recipe-materials {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        
+        .ant-tag {
+          font-size: 11px;
+          margin: 0;
+        }
+      }
+      
+      .recipe-actions {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid #f0f0f0;
+        
+        .last-used {
+          font-size: 11px;
+          color: #999;
+        }
+        
+        .action-btn {
+          font-size: 12px;
+        }
+      }
+    }
+  }
+}

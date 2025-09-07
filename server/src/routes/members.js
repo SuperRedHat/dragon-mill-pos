@@ -59,7 +59,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// 搜索会员（用于收银台快速搜索）
+// 搜索会员（用于收银台快速搜索）- 增强版
 router.get('/search', async (req, res) => {
   try {
     const { keyword = '' } = req.query;
@@ -81,27 +81,67 @@ router.get('/search', async (req, res) => {
           { phone: { [Op.like]: `%${keyword}%` } }
         ]
       },
-      limit: 10,  // 最多返回10条
+      include: [
+        {
+          model: Recipe,
+          as: 'recipes',
+          where: {
+            status: 'active',
+            type: 'private'  // 只查询专属配方
+          },
+          required: false,
+          include: [
+            {
+              model: Product,
+              as: 'products',
+              through: { attributes: ['percentage'] }
+            }
+          ],
+          order: [['usageCount', 'DESC']]  // 按使用次数排序
+        }
+      ],
+      limit: 10,
       order: [
-        // 优先级：完全匹配 > 开头匹配 > 包含匹配
+        // 优先级排序逻辑
         sequelize.literal(`
           CASE 
-            WHEN phone = '${keyword}' THEN 1
-            WHEN member_no = '${keyword}' THEN 2
-            WHEN name = '${keyword}' THEN 3
-            WHEN phone LIKE '${keyword}%' THEN 4
-            WHEN member_no LIKE '${keyword}%' THEN 5
-            WHEN name LIKE '${keyword}%' THEN 6
-            ELSE 7
+            WHEN phone LIKE '%${keyword}' THEN 1
+            WHEN phone = '${keyword}' THEN 2
+            WHEN member_no = '${keyword}' THEN 3
+            WHEN name = '${keyword}' THEN 4
+            WHEN phone LIKE '${keyword}%' THEN 5
+            WHEN member_no LIKE '${keyword}%' THEN 6
+            WHEN name LIKE '${keyword}%' THEN 7
+            ELSE 8
           END
         `),
         ['createdAt', 'DESC']
       ]
     });
     
+    // 格式化返回数据，包含配方信息
+    const formattedMembers = members.map(member => {
+      const memberData = member.toJSON();
+      
+      // 格式化配方信息
+      if (memberData.recipes) {
+        memberData.recipes = memberData.recipes.map(recipe => ({
+          ...recipe,
+          displayName: `${member.phone.slice(-4)}的${recipe.name}`,
+          lastUsed: recipe.updatedAt, // 可以后续添加专门的lastUsedAt字段
+          materials: recipe.products?.slice(0, 3).map(p => ({
+            name: p.name,
+            percentage: p.RecipeProduct.percentage
+          }))
+        }));
+      }
+      
+      return memberData;
+    });
+    
     res.json({
       success: true,
-      data: members
+      data: formattedMembers
     });
   } catch (error) {
     logger.error('搜索会员失败:', error);

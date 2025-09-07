@@ -12,6 +12,7 @@ import { logOperation } from '../utils/operationLog.js';
 import { logger } from '../utils/logger.js';
 import Recipe from '../models/Recipe.js';
 import RecipeProduct from '../models/RecipeProduct.js';
+import UnitConverter from '../utils/unitConverter.js';
 
 const router = express.Router();
 
@@ -238,7 +239,6 @@ router.post('/checkout', async (req, res) => {
       for (const recipeItem of recipes) {
         // 处理临时配方
         if (recipeItem.recipeId && recipeItem.recipeId.toString().startsWith('temp-')) {
-          // 临时配方直接使用前端传来的价格，不扣减库存
           const recipePrice = recipeItem.price || 10;
           const subtotal = recipePrice * recipeItem.quantity;
           totalAmount += subtotal;
@@ -249,10 +249,19 @@ router.post('/checkout', async (req, res) => {
             price: recipePrice,
             quantity: recipeItem.quantity,
             subtotal,
-            unit: '份'
+            unit: '份',
+            isRecipe: true,
+            recipeId: null, // 临时配方没有ID
+            recipeDetails: {
+              recipeName: recipeItem.name,
+              recipeType: 'temp',
+              weight: recipeItem.weight,
+              materials: recipeItem.materials || [],
+              processingFee: 5.00
+            }
           });
           
-          continue; // 跳过后续处理
+          continue;
         }
         
         // 处理正常配方
@@ -273,22 +282,25 @@ router.post('/checkout', async (req, res) => {
           });
         }
         
-        // 检查商品库存并扣减
+        // 检查并扣减库存
+        const materialDetails = [];
         for (const product of recipe.products) {
           const materialWeight = recipeItem.weight * product.RecipeProduct.percentage / 100;
-          const materialQuantity = materialWeight / 1000; // 转换为公斤或其他单位
           
-          if (product.stock < materialQuantity) {
+          // 单位换算
+          const stockDeduction = UnitConverter.fromGram(materialWeight, product.unit);
+          
+          if (product.stock < stockDeduction) {
             await t.rollback();
             return res.status(400).json({ 
               success: false,
-              error: `商品库存不足: ${product.name}` 
+              error: `商品库存不足: ${product.name}，需要${UnitConverter.format(stockDeduction, product.unit)}${product.unit}，当前库存${product.stock}${product.unit}` 
             });
           }
           
           // 扣减库存
           const beforeStock = product.stock;
-          const afterStock = beforeStock - materialQuantity;
+          const afterStock = beforeStock - stockDeduction;
           
           await product.update({
             stock: afterStock
@@ -298,13 +310,23 @@ router.post('/checkout', async (req, res) => {
           await StockRecord.create({
             productId: product.id,
             type: 'sale',
-            quantity: -materialQuantity,
+            quantity: -stockDeduction,
             beforeStock,
             afterStock,
-            remark: `配方使用：${recipe.name}`,
+            remark: `配方使用：${recipe.name} (${recipeItem.weight}g)`,
             operatorId: req.user.id,
             operatorName: req.user.name
           }, { transaction: t });
+          
+          // 收集材料详情
+          materialDetails.push({
+            id: product.id,
+            name: product.name,
+            percentage: product.RecipeProduct.percentage,
+            gramAmount: materialWeight,
+            unit: product.unit,
+            unitAmount: stockDeduction
+          });
         }
         
         // 计算配方价格
@@ -326,13 +348,40 @@ router.post('/checkout', async (req, res) => {
           price: recipePrice,
           quantity: recipeItem.quantity,
           subtotal,
-          unit: '份'
+          unit: '份',
+          isRecipe: true,
+          recipeId: recipe.id,
+          recipeDetails: {
+            recipeName: recipe.name,
+            recipeType: recipe.type,
+            weight: recipeItem.weight,
+            materials: materialDetails,
+            processingFee: recipe.processingFee,
+            materialCost: materialCost
+          }
         });
         
-        // 更新配方使用次数
+        // 更新配方使用统计
         await recipe.update({
-          usageCount: recipe.usageCount + 1
+          usageCount: recipe.usageCount + 1,
+          lastUsedAt: new Date(),
+          lastWeight: recipeItem.weight
         }, { transaction: t });
+        
+        // 记录配方使用日志（如果创建了recipe_usage_logs表）
+        try {
+          await sequelize.query(
+            `INSERT INTO recipe_usage_logs (recipe_id, order_id, member_id, weight, price, created_at) 
+            VALUES (?, ?, ?, ?, ?, NOW())`,
+            {
+              replacements: [recipe.id, order.id, member?.id, recipeItem.weight, recipePrice],
+              type: QueryTypes.INSERT,
+              transaction: t
+            }
+          );
+        } catch (error) {
+          logger.warn('记录配方使用日志失败:', error);
+        }
       }
     }
 

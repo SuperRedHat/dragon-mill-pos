@@ -36,6 +36,7 @@ import {
 import dayjs from 'dayjs';
 import { getMemberList, createMember, updateMember, adjustMemberPoints } from '@/api/members';
 import { getOrderList } from '@/api/orders';
+import { getRecipeList } from '@/api/recipes';
 import './index.scss';
 
 const MemberList = () => {
@@ -61,6 +62,40 @@ const MemberList = () => {
   // 获取当前用户角色
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
   const isAdmin = currentUser.role === 'admin';
+
+  
+  // 查看会员详情时加载配方
+  const handleViewDetail = async (member) => {
+    setCurrentMember(member);
+    setDetailDrawerVisible(true);
+    
+    // 获取消费记录
+    try {
+      const res = await getOrderList({
+        memberId: member.id,
+        page: 1,
+        pageSize: 10
+      });
+      if (res.success) {
+        setMemberOrders(res.data.list);
+      }
+    } catch (error) {
+      console.error('获取消费记录失败');
+    }
+    
+    // 获取专属配方
+    try {
+      const recipeRes = await getRecipeList({
+        type: 'private',
+        memberId: member.id
+      });
+      if (recipeRes.success) {
+        setMemberRecipes(recipeRes.data.list);
+      }
+    } catch (error) {
+      console.error('获取专属配方失败');
+    }
+  };
 
   // 获取会员列表
   const fetchMembers = async () => {
@@ -518,9 +553,12 @@ const MemberList = () => {
       <Drawer
         title="会员详情"
         placement="right"
-        width={600}
+        width={700}
         open={detailDrawerVisible}
-        onClose={() => setDetailDrawerVisible(false)}
+        onClose={() => {
+          setDetailDrawerVisible(false);
+          setMemberRecipes([]);
+        }}
       >
         {currentMember && (
           <>
@@ -552,6 +590,66 @@ const MemberList = () => {
                 {currentMember.remark || '-'}
               </Descriptions.Item>
             </Descriptions>
+
+          {/* 专属配方 */}
+          {memberRecipes && memberRecipes.length > 0 && (
+            <>
+              <Divider />
+              <h4 style={{ marginTop: 24 }}>
+                专属配方 ({memberRecipes.length})
+              </h4>
+              <div style={{ marginTop: 16 }}>
+                {memberRecipes.map(recipe => (
+                  <Card 
+                    key={recipe.id} 
+                    size="small" 
+                    style={{ marginBottom: 12 }}
+                    extra={
+                      <Space>
+                        <Badge 
+                          count={recipe.usageCount} 
+                          style={{ backgroundColor: '#52c41a' }}
+                        />
+                        {recipe.lastUsedAt && (
+                          <span style={{ fontSize: 12, color: '#999' }}>
+                            上次：{dayjs(recipe.lastUsedAt).fromNow()}
+                          </span>
+                        )}
+                      </Space>
+                    }
+                  >
+                    <div>
+                      <div style={{ fontWeight: 500, marginBottom: 8 }}>
+                        {recipe.name}
+                      </div>
+                      <div>
+                        <Space wrap>
+                          {recipe.products?.map(p => (
+                            <Tag key={p.id} color="orange" size="small">
+                              {p.name} {p.RecipeProduct?.percentage}%
+                            </Tag>
+                          ))}
+                        </Space>
+                      </div>
+                      <div style={{ marginTop: 8, fontSize: 12, color: '#666' }}>
+                        <Space>
+                          <span>标准重量: {recipe.totalWeight}g</span>
+                          <Divider type="vertical" />
+                          <span>加工费: ¥{recipe.processingFee}</span>
+                          {recipe.lastWeight && (
+                            <>
+                              <Divider type="vertical" />
+                              <span>常用重量: {recipe.lastWeight}g</span>
+                            </>
+                          )}
+                        </Space>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </>
+          )}
 
             {/* 消费记录 */}
             <h4 style={{ marginTop: 24 }}>最近消费记录</h4>

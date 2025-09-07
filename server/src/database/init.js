@@ -307,7 +307,7 @@ const initDatabase = async () => {
     ]);
     logger.info('公共配方2创建成功');
 
-    // 为张三创建私人配方
+    // 为张三创建专属配方
     const privateRecipe = await Recipe.create({
       name: '张三专属配方',
       type: 'private',
@@ -344,7 +344,7 @@ const initDatabase = async () => {
         amount: 20
       }
     ]);
-    logger.info('私人配方创建成功');
+    logger.info('专属配方创建成功');
 
     // 创建模板配方
     const templateRecipe = await Recipe.create({

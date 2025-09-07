@@ -27,7 +27,7 @@ const Recipe = sequelize.define('Recipe', {
   memberId: {
     type: DataTypes.INTEGER,
     field: 'member_id',
-    comment: '会员ID（私人配方）'
+    comment: '会员ID（专属配方）'
   },
   description: {
     type: DataTypes.TEXT,

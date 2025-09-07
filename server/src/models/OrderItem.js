@@ -50,6 +50,17 @@ const OrderItem = sequelize.define('OrderItem', {
       return value ? parseFloat(value) : 0;
     }
   },
+  recipeDetails: {
+    type: DataTypes.JSON,
+    comment: '配方详情（材料明细等）',
+    defaultValue: null
+  },
+  isRecipe: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    field: 'is_recipe',
+    comment: '是否为配方项'
+  },
   subtotal: {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: false,

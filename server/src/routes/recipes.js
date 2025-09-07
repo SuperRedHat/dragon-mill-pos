@@ -49,9 +49,9 @@ router.get('/', async (req, res) => {
         { type: 'template' }
       ];
       
-      // 如果用户关联了会员，也显示其私人配方
+      // 如果用户关联了会员，也显示其专属配方
       // 注意：这里需要根据实际情况调整
-      // 如果 req.user 有 memberId 属性，则添加私人配方条件
+      // 如果 req.user 有 memberId 属性，则添加专属配方条件
       if (req.user.memberId) {
         where[Op.or].push({ 
           type: 'private',
@@ -167,7 +167,7 @@ router.put('/:id', logMiddleware('配方管理', '更新配方'), async (req, re
       });
     }
     
-    // 检查权限（私人配方只能自己修改）
+    // 检查权限（专属配方只能自己修改）
     if (recipe.type === 'private' && recipe.memberId !== req.user.memberId) {
       return res.status(403).json({ 
         success: false,
