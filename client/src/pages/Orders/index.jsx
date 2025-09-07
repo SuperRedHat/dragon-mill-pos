@@ -487,12 +487,29 @@ const Orders = () => {
                   title: '单价',
                   dataIndex: 'price',
                   key: 'price',
-                  render: (price) => `¥${price.toFixed(2)}`
+                  render: (price, record) => (
+                    <span>
+                      ¥{price.toFixed(2)}
+                      {record.unit && (
+                        <span style={{ fontSize: 12, color: '#999' }}>/{record.unit}</span>
+                      )}
+                    </span>
+                  )
                 },
                 {
                   title: '数量',
                   dataIndex: 'quantity',
-                  key: 'quantity'
+                  key: 'quantity',
+                  render: (quantity, record) => (
+                    <span>
+                      {quantity}
+                      {record.unit && (
+                        <span style={{ marginLeft: 4, fontSize: 12, color: '#666' }}>
+                          {record.unit}
+                        </span>
+                      )}
+                    </span>
+                  )
                 },
                 {
                   title: '小计',

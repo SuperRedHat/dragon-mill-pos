@@ -27,6 +27,11 @@ const OrderItem = sequelize.define('OrderItem', {
     field: 'product_name',
     comment: '商品名称'
   },
+  unit: {
+    type: DataTypes.STRING(20),
+    comment: '单位',
+    defaultValue: '个'
+  },
   price: {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: false,

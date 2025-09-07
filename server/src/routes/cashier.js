@@ -118,7 +118,8 @@ router.post('/checkout', async (req, res) => {
         productName: product.name,
         price,
         quantity: item.quantity,
-        subtotal
+        subtotal,
+        unit: product.unit
       });
       
       // 扣减库存
@@ -167,7 +168,12 @@ router.post('/checkout', async (req, res) => {
     for (const item of orderItems) {
       await OrderItem.create({
         orderId: order.id,
-        ...item
+        productId: item.productId,
+        productName: item.productName,
+        price: item.price,
+        quantity: item.quantity,
+        subtotal: item.subtotal,
+        unit: item.unit  // 添加单位信息
       }, { transaction: t });
     }
     
