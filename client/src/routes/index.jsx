@@ -18,6 +18,9 @@ const Cashier = lazy(() => import('@/pages/Cashier')); // 添加收银台组件
 const Orders = lazy(() => import('@/pages/Orders'));
 const MemberList = lazy(() => import('@/pages/Members/List'));
 const PointsManagement = lazy(() => import('@/pages/Members/Points'));
+const Materials = lazy(() => import('@/pages/Recipes/Materials'));
+const RecipeList = lazy(() => import('@/pages/Recipes/List'));
+const RecipeService = lazy(() => import('@/pages/Recipes/Service'));
 
 // 全局加载组件
 const PageLoading = () => (
@@ -132,9 +135,9 @@ const Router = () => {
           
           {/* 配方管理 */}
           <Route path="recipes">
-            <Route path="materials" element={<ComingSoon title="原材料管理" />} />
-            <Route path="list" element={<ComingSoon title="配方列表" />} />
-            <Route path="service" element={<ComingSoon title="磨粉服务" />} />
+            <Route path="materials" element={<Materials />} />
+            <Route path="list" element={<RecipeList />} />
+            <Route path="service" element={<RecipeService />} />
           </Route>
           
           {/* 报表中心 */}

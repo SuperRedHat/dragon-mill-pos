@@ -1,0 +1,53 @@
+.recipe-service-page {
+  .ant-card {
+    min-height: calc(100vh - 120px);
+  }
+
+  .recipe-selection {
+    display: flex;
+    gap: 24px;
+    
+    .recipe-tabs {
+      flex: 1;
+      max-height: 500px;
+      overflow-y: auto;
+      
+      .recipe-item {
+        cursor: pointer;
+        padding: 12px;
+        border: 1px solid #f0f0f0;
+        border-radius: 4px;
+        margin-bottom: 8px;
+        transition: all 0.3s;
+        
+        &:hover {
+          border-color: #1890ff;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.09);
+        }
+        
+        &.selected {
+          border-color: #1890ff;
+          background: #e6f7ff;
+        }
+      }
+    }
+    
+    .recipe-form {
+      width: 400px;
+      padding: 16px;
+      background: #fafafa;
+      border-radius: 4px;
+    }
+  }
+
+  .service-order-preview {
+    max-width: 600px;
+    margin: 0 auto;
+    
+    @media print {
+      .ant-descriptions-item-label {
+        font-weight: bold;
+      }
+    }
+  }
+}

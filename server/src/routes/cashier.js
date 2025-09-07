@@ -10,6 +10,9 @@ import StockRecord from '../models/StockRecord.js';
 import { authenticate } from '../middleware/auth.js';
 import { logOperation } from '../utils/operationLog.js';
 import { logger } from '../utils/logger.js';
+import Recipe from '../models/Recipe.js';
+import Material from '../models/Material.js';
+import RecipeMaterial from '../models/RecipeMaterial.js';
 
 const router = express.Router();
 
@@ -28,6 +31,91 @@ const generateOrderNo = () => {
   const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
   return `${year}${month}${day}${hour}${minute}${second}${random}`;
 };
+
+// 获取配方用于收银
+router.get('/recipes/for-sale', async (req, res) => {
+  try {
+    const { memberId } = req.query;
+    
+    const where = {
+      status: 'active',
+      [Op.or]: [
+        { type: 'public' },
+        ...(memberId ? [{ memberId: memberId }] : [])
+      ]
+    };
+    
+    const recipes = await Recipe.findAll({
+      where,
+      include: [{
+        model: Material,
+        as: 'materials',
+        through: { attributes: ['percentage'] }
+      }],
+      order: [['usageCount', 'DESC'], ['name', 'ASC']]
+    });
+    
+    res.json({
+      success: true,
+      data: recipes
+    });
+  } catch (error) {
+    logger.error('获取配方失败:', error);
+    res.status(500).json({ 
+      success: false,
+      error: '获取配方失败' 
+    });
+  }
+});
+
+// 计算配方价格（用于收银）
+router.post('/recipes/calculate', async (req, res) => {
+  try {
+    const { recipeId, weight } = req.body;
+    
+    const recipe = await Recipe.findByPk(recipeId, {
+      include: [{
+        model: Material,
+        as: 'materials'
+      }]
+    });
+    
+    if (!recipe) {
+      return res.status(404).json({ 
+        success: false,
+        error: '配方不存在' 
+      });
+    }
+    
+    // 计算材料成本
+    let materialCost = 0;
+    for (const material of recipe.materials) {
+      const materialWeight = weight * material.RecipeMaterial.percentage / 100;
+      materialCost += materialWeight * material.price / 1000;
+    }
+    
+    const totalPrice = materialCost + recipe.processingFee;
+    
+    res.json({
+      success: true,
+      data: {
+        recipeId: recipe.id,
+        recipeName: recipe.name,
+        weight,
+        materialCost: materialCost.toFixed(2),
+        processingFee: recipe.processingFee,
+        totalPrice: totalPrice.toFixed(2)
+      }
+    });
+  } catch (error) {
+    logger.error('计算配方价格失败:', error);
+    res.status(500).json({ 
+      success: false,
+      error: '计算配方价格失败' 
+    });
+  }
+});
+
 
 // 创建订单（收银结算）
 router.post('/checkout', async (req, res) => {
@@ -141,6 +229,73 @@ router.post('/checkout', async (req, res) => {
       }, { transaction: t });
     }
     
+    // 处理配方
+    if (req.body.recipes && req.body.recipes.length > 0) {
+      for (const recipeItem of req.body.recipes) {
+        const recipe = await Recipe.findByPk(recipeItem.recipeId, {
+          include: [{
+            model: Material,
+            as: 'materials'
+          }],
+          transaction: t
+        });
+        
+        if (!recipe) {
+          await t.rollback();
+          return res.status(404).json({ 
+            success: false,
+            error: `配方不存在: ID=${recipeItem.recipeId}` 
+          });
+        }
+        
+        // 检查材料库存并扣减
+        for (const material of recipe.materials) {
+          const materialWeight = recipeItem.weight * material.RecipeMaterial.percentage / 100;
+          
+          if (material.stock < materialWeight / 1000) {
+            await t.rollback();
+            return res.status(400).json({ 
+              success: false,
+              error: `材料库存不足: ${material.name}` 
+            });
+          }
+          
+          await material.update({
+            stock: material.stock - materialWeight / 1000
+          }, { transaction: t });
+        }
+        
+        // 计算配方价格
+        let materialCost = 0;
+        for (const material of recipe.materials) {
+          const materialWeight = recipeItem.weight * material.RecipeMaterial.percentage / 100;
+          materialCost += materialWeight * material.price / 1000;
+        }
+        
+        const recipePrice = materialCost + recipe.processingFee;
+        const subtotal = recipePrice * recipeItem.quantity;
+        totalAmount += subtotal;
+        
+        // 添加到订单项
+        orderItems.push({
+          recipeId: recipe.id,
+          productName: `配方：${recipe.name}`,
+          price: recipePrice,
+          quantity: recipeItem.quantity,
+          subtotal,
+          unit: '份',
+          isRecipe: true,
+          recipeWeight: recipeItem.weight
+        });
+        
+        // 更新配方使用次数
+        await recipe.update({
+          usageCount: recipe.usageCount + 1
+        }, { transaction: t });
+      }
+    }
+
+
     // 计算积分抵扣金额（假设100积分=1元）
     const pointsValue = pointsUsed / 100;
     const discountAmount = Math.min(pointsValue, totalAmount);

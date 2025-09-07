@@ -9,6 +9,11 @@ import Member from '../models/Member.js';
 import Order from '../models/Order.js';
 import OrderItem from '../models/OrderItem.js';
 import { logger } from '../utils/logger.js';
+import Material from '../models/Material.js';
+import Recipe from '../models/Recipe.js';
+import RecipeMaterial from '../models/RecipeMaterial.js';
+
+
 
 const initDatabase = async () => {
   try {
@@ -34,6 +39,42 @@ const initDatabase = async () => {
         status: 'active'
       });
       logger.info('默认管理员创建成功');
+    }
+
+    // 检查是否有原材料
+    const materialCount = await Material.count();
+
+    if (materialCount === 0) {
+      // 创建默认原材料
+      const materials = await Material.bulkCreate([
+        { name: '黑芝麻', category: '谷物', unit: '斤', price: 15.00, stock: 100 },
+        { name: '核桃', category: '坚果', unit: '斤', price: 35.00, stock: 50 },
+        { name: '红豆', category: '豆类', unit: '斤', price: 8.00, stock: 80 },
+        { name: '薏米', category: '谷物', unit: '斤', price: 12.00, stock: 60 },
+        { name: '燕麦', category: '谷物', unit: '斤', price: 6.00, stock: 100 }
+      ]);
+      
+      logger.info('默认原材料创建成功');
+      
+      // 创建示例配方
+      const recipe = await Recipe.create({
+        name: '养生五谷粉',
+        type: 'public',
+        description: '营养均衡的五谷杂粮粉',
+        totalWeight: 100,
+        processingFee: 5.00
+      });
+      
+      // 添加配方材料
+      await RecipeMaterial.bulkCreate([
+        { recipeId: recipe.id, materialId: materials[0].id, percentage: 30, amount: 30 },
+        { recipeId: recipe.id, materialId: materials[1].id, percentage: 20, amount: 20 },
+        { recipeId: recipe.id, materialId: materials[2].id, percentage: 20, amount: 20 },
+        { recipeId: recipe.id, materialId: materials[3].id, percentage: 15, amount: 15 },
+        { recipeId: recipe.id, materialId: materials[4].id, percentage: 15, amount: 15 }
+      ]);
+      
+      logger.info('示例配方创建成功');
     }
 
     // 检查是否有商品分类

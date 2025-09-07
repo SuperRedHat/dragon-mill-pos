@@ -44,11 +44,17 @@ import {
   CalendarOutlined
 } from '@ant-design/icons';
 import { getCashierProducts, searchProducts, checkout, getTodayStats } from '@/api/cashier';
+import { getRecipesForSale, calculateRecipeForCashier } from '@/api/recipes';
 import { getMemberByPhone, searchMembers } from '@/api/members';
 import './index.scss';
 
 const { Search } = Input;
 const { Text, Title } = Typography;
+const [recipes, setRecipes] = useState([]);
+const [showRecipeModal, setShowRecipeModal] = useState(false);
+const [selectedRecipe, setSelectedRecipe] = useState(null);
+const [recipeWeight, setRecipeWeight] = useState(100);
+const [recipeForm] = Form.useForm();
 
 const Cashier = () => {
   const [cart, setCart] = useState([]);
@@ -80,6 +86,7 @@ const Cashier = () => {
   const [quantityModalVisible, setQuantityModalVisible] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [quantityForm] = Form.useForm();
+  
 
   // 获取商品列表
   const fetchProducts = async () => {
@@ -105,15 +112,28 @@ const Cashier = () => {
     }
   };
 
+  // 获取配方列表
+  const fetchRecipes = async () => {
+    try {
+      const res = await getRecipesForSale(selectedMember?.id);
+      if (res.success) {
+        setRecipes(res.data);
+      }
+    } catch (error) {
+      console.error('获取配方失败:', error);
+    }
+  };
+
   useEffect(() => {
     fetchProducts();
+    fetchRecipes();
     fetchTodayStats();
     
     // 定时刷新统计
     const timer = setInterval(fetchTodayStats, 60000); // 每分钟刷新
     
     return () => clearInterval(timer);
-  }, []);
+  }, [selectedMember]);
 
   // 修改为先打开数量输入弹窗
   const handleProductClick = (product) => {
@@ -374,10 +394,19 @@ const Cashier = () => {
   const handlePayment = async (values) => {
     setCheckoutLoading(true);
     try {
+      // 分离普通商品和配方
+      const products = cart.filter(item => !item.isRecipe);
+      const recipes = cart.filter(item => item.isRecipe);
+      
       const orderData = {
         memberId: selectedMember?.id,
-        items: cart.map(item => ({
+        items: products.map(item => ({
           productId: item.id,
+          quantity: item.quantity
+        })),
+        recipes: recipes.map(item => ({
+          recipeId: item.recipeId,
+          weight: item.weight,
           quantity: item.quantity
         })),
         paymentMethod: values.paymentMethod,
@@ -522,6 +551,53 @@ const Cashier = () => {
     </Card>
   );
 
+
+  // 点击配方
+  const handleRecipeClick = (recipe) => {
+    setSelectedRecipe(recipe);
+    Modal.confirm({
+      title: `添加配方：${recipe.name}`,
+      content: (
+        <Form layout="vertical">
+          <Form.Item label="重量（克）">
+            <InputNumber
+              min={50}
+              max={5000}
+              step={50}
+              defaultValue={100}
+              onChange={setRecipeWeight}
+              style={{ width: '100%' }}
+            />
+          </Form.Item>
+        </Form>
+      ),
+      onOk: async () => {
+        const res = await calculateRecipeForCashier({
+          recipeId: recipe.id,
+          weight: recipeWeight
+        });
+        
+        if (res.success) {
+          const { data } = res;
+          // 添加到购物车
+          setCart([...cart, {
+            id: `recipe-${recipe.id}`,
+            recipeId: recipe.id,
+            name: data.recipeName,
+            price: parseFloat(data.totalPrice),
+            quantity: 1,
+            subtotal: parseFloat(data.totalPrice),
+            unit: '份',
+            isRecipe: true,
+            weight: recipeWeight
+          }]);
+          
+          message.success('配方已添加到购物车');
+        }
+      }
+    });
+  };
+
   // Tab 配置
   const tabItems = [
     {
@@ -541,6 +617,88 @@ const Cashier = () => {
               </Row>
             </div>
           ))}
+        </div>
+      )
+    },
+    {
+      key: 'recipes',
+      label: (
+        <Badge count={recipes.length} offset={[10, 0]}>
+          <ExperimentOutlined /> 配方
+        </Badge>
+      ),
+      children: (
+        <div className="recipes-container">
+          {recipesLoading ? (
+            <div style={{ textAlign: 'center', padding: 50 }}>
+              <Spin size="large" />
+              <div style={{ marginTop: 16 }}>加载配方中...</div>
+            </div>
+          ) : (
+            <div className="products-grid">
+              <Row gutter={[12, 12]}>
+                {recipes.map(recipe => (
+                  <Col key={recipe.id} xs={12} sm={8} md={6}>
+                    <Card
+                      hoverable
+                      className="recipe-item"
+                      onClick={() => handleRecipeClick(recipe)}
+                    >
+                      <div className="recipe-image">
+                        <Avatar 
+                          size={64} 
+                          icon={<ExperimentOutlined />}
+                          style={{ backgroundColor: '#52c41a' }}
+                        />
+                      </div>
+                      <div className="recipe-info">
+                        <div className="recipe-name">{recipe.name}</div>
+                        <div className="recipe-type">
+                          <Tag color={recipe.type === 'public' ? 'blue' : 'green'} size="small">
+                            {recipe.type === 'public' ? '公共' : '私人'}
+                          </Tag>
+                        </div>
+                        <div className="recipe-materials">
+                          {recipe.materials?.slice(0, 2).map(m => (
+                            <Tag key={m.id} size="small" color="orange">
+                              {m.name} {m.RecipeMaterial.percentage}%
+                            </Tag>
+                          ))}
+                          {recipe.materials?.length > 2 && (
+                            <Tag size="small">+{recipe.materials.length - 2}</Tag>
+                          )}
+                        </div>
+                        <div className="recipe-meta">
+                          <small>加工费: ¥{recipe.processingFee}</small>
+                        </div>
+                      </div>
+                    </Card>
+                  </Col>
+                ))}
+                
+                {/* 创建配方卡片 */}
+                <Col xs={12} sm={8} md={6}>
+                  <Card
+                    hoverable
+                    className="create-recipe-card"
+                    onClick={() => message.info('创建配方功能开发中')}
+                    style={{ 
+                      height: '100%', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      minHeight: 150
+                    }}
+                  >
+                    <div style={{ textAlign: 'center' }}>
+                      <PlusOutlined style={{ fontSize: 32, color: '#1890ff' }} />
+                      <div style={{ marginTop: 8 }}>创建配方</div>
+                    </div>
+                  </Card>
+                </Col>
+              </Row>
+            </div>
+          )}
         </div>
       )
     },
