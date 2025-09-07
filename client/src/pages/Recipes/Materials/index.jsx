@@ -418,45 +418,72 @@ const Materials = () => {
 
         {/* 统计信息 */}
         <Row gutter={16} style={{ marginBottom: 16 }}>
-          <Col span={6}>
-            <Card size="small">
-              <Statistic
-                title="材料总数"
-                value={statistics.total}
-                suffix="种"
-              />
-            </Card>
+          <Col xs={12} sm={12} md={6} lg={6}>
+            <div style={{ 
+              background: '#fff',
+              border: '1px solid #f0f0f0',
+              borderRadius: '4px',
+              padding: '16px',
+              textAlign: 'center'
+            }}>
+              <div style={{ color: '#999', fontSize: '12px', marginBottom: '4px' }}>
+                材料总数
+              </div>
+              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#333' }}>
+                {statistics.total}
+                <span style={{ fontSize: '14px', fontWeight: 'normal', marginLeft: '4px' }}>种</span>
+              </div>
+            </div>
           </Col>
-          <Col span={6}>
-            <Card size="small">
-              <Statistic
-                title="库存总值"
-                value={statistics.totalValue}
-                prefix="¥"
-                precision={2}
-                valueStyle={{ color: '#3f8600' }}
-              />
-            </Card>
+          <Col xs={12} sm={12} md={6} lg={6}>
+            <div style={{ 
+              background: '#fff',
+              border: '1px solid #f0f0f0',
+              borderRadius: '4px',
+              padding: '16px',
+              textAlign: 'center'
+            }}>
+              <div style={{ color: '#999', fontSize: '12px', marginBottom: '4px' }}>
+                库存总值
+              </div>
+              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#52c41a' }}>
+                ¥{statistics.totalValue.toFixed(2)}
+              </div>
+            </div>
           </Col>
-          <Col span={6}>
-            <Card size="small">
-              <Statistic
-                title="库存不足"
-                value={statistics.lowStock}
-                suffix="种"
-                valueStyle={{ color: '#faad14' }}
-              />
-            </Card>
+          <Col xs={12} sm={12} md={6} lg={6}>
+            <div style={{ 
+              background: '#fff',
+              border: '1px solid #f0f0f0',
+              borderRadius: '4px',
+              padding: '16px',
+              textAlign: 'center'
+            }}>
+              <div style={{ color: '#999', fontSize: '12px', marginBottom: '4px' }}>
+                库存不足
+              </div>
+              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#faad14' }}>
+                {statistics.lowStock}
+                <span style={{ fontSize: '14px', fontWeight: 'normal', marginLeft: '4px' }}>种</span>
+              </div>
+            </div>
           </Col>
-          <Col span={6}>
-            <Card size="small">
-              <Statistic
-                title="缺货"
-                value={statistics.outOfStock}
-                suffix="种"
-                valueStyle={{ color: '#cf1322' }}
-              />
-            </Card>
+          <Col xs={12} sm={12} md={6} lg={6}>
+            <div style={{ 
+              background: '#fff',
+              border: '1px solid #f0f0f0',
+              borderRadius: '4px',
+              padding: '16px',
+              textAlign: 'center'
+            }}>
+              <div style={{ color: '#999', fontSize: '12px', marginBottom: '4px' }}>
+                缺货
+              </div>
+              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#ff4d4f' }}>
+                {statistics.outOfStock}
+                <span style={{ fontSize: '14px', fontWeight: 'normal', marginLeft: '4px' }}>种</span>
+              </div>
+            </div>
           </Col>
         </Row>
 

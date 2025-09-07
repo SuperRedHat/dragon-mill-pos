@@ -41,22 +41,27 @@ import {
   DollarOutlined,
   GiftOutlined,
   BarcodeOutlined,
-  CalendarOutlined
+  CalendarOutlined,
+  ExperimentOutlined,
+  PercentageOutlined
 } from '@ant-design/icons';
 import { getCashierProducts, searchProducts, checkout, getTodayStats } from '@/api/cashier';
 import { getRecipesForSale, calculateRecipeForCashier } from '@/api/recipes';
 import { getMemberByPhone, searchMembers } from '@/api/members';
 import './index.scss';
+import { getMaterialList } from '@/api/materials';
 
 const { Search } = Input;
 const { Text, Title } = Typography;
-const [recipes, setRecipes] = useState([]);
-const [showRecipeModal, setShowRecipeModal] = useState(false);
-const [selectedRecipe, setSelectedRecipe] = useState(null);
-const [recipeWeight, setRecipeWeight] = useState(100);
-const [recipeForm] = Form.useForm();
+
 
 const Cashier = () => {
+  const [showRecipeModal, setShowRecipeModal] = useState(false);
+  const [selectedRecipe, setSelectedRecipe] = useState(null);
+  const [recipeWeight, setRecipeWeight] = useState(100);
+  const [recipeForm] = Form.useForm();
+  const [recipesLoading, setRecipesLoading] = useState(false);
+  const [recipes, setRecipes] = useState([]);
   const [cart, setCart] = useState([]);
   const [products, setProducts] = useState({});
   const [selectedMember, setSelectedMember] = useState(null);
@@ -71,6 +76,12 @@ const Cashier = () => {
     orderCount: 0,
     averageAmount: 0
   });
+
+  // 在其他 state 后面添加
+  const [createRecipeModalVisible, setCreateRecipeModalVisible] = useState(false);
+  const [materials, setMaterials] = useState([]);
+  const [tempRecipeForm] = Form.useForm();
+
   const [activeTab, setActiveTab] = useState('all'); // 当前激活的标签
   
   const [paymentForm] = Form.useForm();
@@ -114,6 +125,7 @@ const Cashier = () => {
 
   // 获取配方列表
   const fetchRecipes = async () => {
+    setRecipesLoading(true);
     try {
       const res = await getRecipesForSale(selectedMember?.id);
       if (res.success) {
@@ -121,6 +133,101 @@ const Cashier = () => {
       }
     } catch (error) {
       console.error('获取配方失败:', error);
+    }finally {
+      setRecipesLoading(false);
+    }
+  };
+
+  // 获取材料列表
+  const fetchMaterials = async () => {
+    try {
+      const res = await getMaterialList({ status: 'active', pageSize: 100 });
+      if (res.success) {
+        setMaterials(res.data.list);
+      }
+    } catch (error) {
+      console.error('获取材料失败:', error);
+    }
+  };
+
+  // 处理创建临时配方
+  const handleCreateTempRecipe = () => {
+    setCreateRecipeModalVisible(true);
+    tempRecipeForm.setFieldsValue({
+      name: '临时配方',
+      weight: 100,
+      materials: [{ materialId: undefined, percentage: 100 }]
+    });
+  };
+
+  // 提交临时配方
+  const handleSubmitTempRecipe = async (values) => {
+    try {
+      // 验证配比总和
+      const totalPercentage = values.materials.reduce((sum, m) => 
+        sum + parseFloat(m.percentage || 0), 0
+      );
+      
+      if (Math.abs(totalPercentage - 100) > 0.01) {
+        message.error('材料配比总和必须为100%');
+        return;
+      }
+      
+      // 计算价格
+      let materialCost = 0;
+      const materialList = [];
+      
+      for (const item of values.materials) {
+        const material = materials.find(m => m.id === item.materialId);
+        if (material) {
+          const materialWeight = values.weight * item.percentage / 100;
+          const cost = materialWeight * material.price / 1000;
+          materialCost += cost;
+          materialList.push({
+            ...material,
+            percentage: item.percentage,
+            weight: materialWeight,
+            cost
+          });
+        }
+      }
+      
+      const processingFee = 5; // 默认加工费
+      const totalPrice = materialCost + processingFee;
+      
+      // 创建临时配方对象
+      const tempRecipe = {
+        id: `temp-${Date.now()}`,
+        name: values.name,
+        type: 'temp',
+        materials: materialList,
+        weight: values.weight,
+        materialCost,
+        processingFee,
+        totalPrice,
+        isTemp: true
+      };
+      
+      // 添加到购物车
+      setCart([...cart, {
+        id: tempRecipe.id,
+        recipeId: tempRecipe.id,
+        name: `配方：${tempRecipe.name}`,
+        price: totalPrice,
+        quantity: 1,
+        subtotal: totalPrice,
+        unit: '份',
+        isRecipe: true,
+        isTemp: true,
+        weight: values.weight,
+        materials: materialList
+      }]);
+      
+      message.success('临时配方已添加到购物车');
+      setCreateRecipeModalVisible(false);
+      tempRecipeForm.resetFields();
+    } catch (error) {
+      message.error('创建临时配方失败');
     }
   };
 
@@ -128,7 +235,8 @@ const Cashier = () => {
     fetchProducts();
     fetchRecipes();
     fetchTodayStats();
-    
+    fetchMaterials();
+
     // 定时刷新统计
     const timer = setInterval(fetchTodayStats, 60000); // 每分钟刷新
     
@@ -681,7 +789,7 @@ const Cashier = () => {
                   <Card
                     hoverable
                     className="create-recipe-card"
-                    onClick={() => message.info('创建配方功能开发中')}
+                    onClick={handleCreateTempRecipe}
                     style={{ 
                       height: '100%', 
                       display: 'flex', 
@@ -1045,6 +1153,148 @@ const Cashier = () => {
         </Form>
       </Modal>
       
+      {/* 创建临时配方弹窗 */}
+      <Modal
+        title="创建临时配方"
+        open={createRecipeModalVisible}
+        onCancel={() => {
+          setCreateRecipeModalVisible(false);
+          tempRecipeForm.resetFields();
+        }}
+        footer={null}
+        width={700}
+      >
+        <Form
+          form={tempRecipeForm}
+          layout="vertical"
+          onFinish={handleSubmitTempRecipe}
+        >
+          <Form.Item
+            name="name"
+            label="配方名称"
+            rules={[{ required: true, message: '请输入配方名称' }]}
+          >
+            <Input placeholder="请输入配方名称" />
+          </Form.Item>
+          
+          <Form.Item
+            name="weight"
+            label="制作重量（克）"
+            rules={[
+              { required: true, message: '请输入重量' },
+              { type: 'number', min: 10, max: 5000, message: '重量范围：10-5000克' }
+            ]}
+          >
+            <InputNumber
+              min={10}
+              max={5000}
+              step={10}
+              style={{ width: '100%' }}
+              placeholder="请输入制作重量"
+            />
+          </Form.Item>
+          
+          <Divider>材料配比</Divider>
+          
+          <Form.List name="materials">
+            {(fields, { add, remove }) => {
+              const currentTotal = tempRecipeForm.getFieldValue('materials')?.reduce(
+                (sum, m) => sum + parseFloat(m?.percentage || 0), 0
+              ) || 0;
+              
+              return (
+                <>
+                  <div style={{ marginBottom: 16 }}>
+                    <Tag color={Math.abs(currentTotal - 100) < 0.01 ? 'success' : 'error'}>
+                      当前配比总和：{currentTotal.toFixed(2)}%
+                    </Tag>
+                  </div>
+                  
+                  {fields.map(({ key, name, ...restField }) => (
+                    <Space
+                      key={key}
+                      style={{ display: 'flex', marginBottom: 8 }}
+                      align="baseline"
+                    >
+                      <Form.Item
+                        {...restField}
+                        name={[name, 'materialId']}
+                        rules={[{ required: true, message: '请选择材料' }]}
+                      >
+                        <Select
+                          placeholder="选择材料"
+                          style={{ width: 200 }}
+                          showSearch
+                          optionFilterProp="children"
+                        >
+                          {materials.map(m => (
+                            <Option key={m.id} value={m.id}>
+                              {m.name} (¥{m.price}/{m.unit})
+                            </Option>
+                          ))}
+                        </Select>
+                      </Form.Item>
+                      
+                      <Form.Item
+                        {...restField}
+                        name={[name, 'percentage']}
+                        rules={[
+                          { required: true, message: '请输入配比' },
+                          { type: 'number', min: 0.1, max: 100, message: '配比范围0.1-100' }
+                        ]}
+                      >
+                        <InputNumber
+                          min={0.1}
+                          max={100}
+                          precision={2}
+                          placeholder="配比"
+                          addonAfter="%"
+                        />
+                      </Form.Item>
+                      
+                      {fields.length > 1 && (
+                        <Button
+                          type="link"
+                          danger
+                          onClick={() => remove(name)}
+                        >
+                          删除
+                        </Button>
+                      )}
+                    </Space>
+                  ))}
+                  
+                  <Form.Item>
+                    <Button
+                      type="dashed"
+                      onClick={() => add()}
+                      block
+                      icon={<PlusOutlined />}
+                    >
+                      添加材料
+                    </Button>
+                  </Form.Item>
+                </>
+              );
+            }}
+          </Form.List>
+          
+          <Form.Item>
+            <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+              <Button onClick={() => {
+                setCreateRecipeModalVisible(false);
+                tempRecipeForm.resetFields();
+              }}>
+                取消
+              </Button>
+              <Button type="primary" htmlType="submit">
+                确定并添加到购物车
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
+
       {/* 在支付弹窗后面添加数量输入弹窗 */}
       <Modal
         title={`请输入购买数量 - ${selectedProduct?.name}`}

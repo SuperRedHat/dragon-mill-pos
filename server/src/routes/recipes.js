@@ -39,14 +39,25 @@ router.get('/', async (req, res) => {
       where.type = type;
     }
     
-    // 获取公共配方或自己的私人配方
-    if (!memberId) {
-      where[Op.or] = [
-        { type: ['public', 'template'] },
-        { memberId: req.user.memberId } // 假设用户关联了会员
-      ];
-    } else {
+    // 修复这里的逻辑
+    if (memberId) {
       where.memberId = memberId;
+    } else {
+      // 默认显示公共配方和模板配方
+      where[Op.or] = [
+        { type: 'public' },
+        { type: 'template' }
+      ];
+      
+      // 如果用户关联了会员，也显示其私人配方
+      // 注意：这里需要根据实际情况调整
+      // 如果 req.user 有 memberId 属性，则添加私人配方条件
+      if (req.user.memberId) {
+        where[Op.or].push({ 
+          type: 'private',
+          memberId: req.user.memberId 
+        });
+      }
     }
     
     const { count, rows } = await Recipe.findAndCountAll({
@@ -60,7 +71,8 @@ router.get('/', async (req, res) => {
         {
           model: Member,
           as: 'owner',
-          attributes: ['id', 'name', 'phone']
+          attributes: ['id', 'name', 'phone'],
+          required: false  // 改为 false，不强制要求有 owner
         }
       ],
       limit: parseInt(pageSize),
