@@ -23,10 +23,14 @@ import {
   Typography,
   AutoComplete,
   Spin,
-  Select
+  Select,
+  Checkbox, 
+  Tooltip,  
+  Popover, 
+  Progress
 } from 'antd';
-import dayjs from 'dayjs';
 import CartManager from '@/utils/cartManager';
+import UnitConverter from '@/utils/unitConverter';
 import {
   SearchOutlined,
   ShoppingCartOutlined,
@@ -45,21 +49,32 @@ import {
   BarcodeOutlined,
   CalendarOutlined,
   ExperimentOutlined,
-  PercentageOutlined
+  PercentageOutlined,
+  InfoCircleOutlined,
+  GlobalOutlined,
+  ClockCircleOutlined,
+  ArrowRightOutlined,
+  QuestionCircleOutlined
 } from '@ant-design/icons';
 import { getCashierProducts, searchProducts, checkout, getTodayStats } from '@/api/cashier';
-import { getRecipesForSale, calculateRecipeForCashier } from '@/api/recipes';
+import { getRecipesForSale, calculateRecipeForCashier, createRecipe } from '@/api/recipes';
 import { getMemberByPhone, searchMembers } from '@/api/members';
 import { getProductList } from '@/api/products';
-import './index.scss';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+import 'dayjs/locale/zh-cn';
 
+dayjs.extend(relativeTime);
+dayjs.locale('zh-cn');
 
 const { Search } = Input;
 const { Text, Title } = Typography;
 const { Option } = Select;
+const { TextArea } = Input;
 
 
 const Cashier = () => {
+  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
   const [showRecipeModal, setShowRecipeModal] = useState(false);
   const [selectedRecipe, setSelectedRecipe] = useState(null);
   const [recipeWeight, setRecipeWeight] = useState(100);
@@ -112,10 +127,13 @@ const Cashier = () => {
   const fetchProducts = async () => {
     try {
       const res = await getCashierProducts();
+      console.log('商品数据响应:', res); // 添加调试日志
       if (res.success) {
         setProducts(res.data);
+        console.log('设置的商品数据:', res.data); // 添加调试日志
       }
     } catch (error) {
+      console.log('设置的商品数据:', res.data); // 添加调试日志
       message.error('获取商品列表失败');
     }
   };
@@ -284,7 +302,7 @@ const Cashier = () => {
       
       // 询问是否保存为正式配方
       if (selectedMember) {
-        Modal.confirm({
+        modal.confirm({
           title: '保存配方',
           content: '是否将此配方保存为专属配方，方便下次使用？',
           onOk: async () => {
@@ -350,12 +368,16 @@ const Cashier = () => {
   };
   
   useEffect(() => {
+    fetchProducts();
+    fetchTodayStats();
+    fetchRecipes();
+    fetchRecipeProducts();
     // 检查是否有从配方管理页面传来的配方
     const checkTempCart = async () => {
       const tempCart = CartManager.getValidCart();
       
       if (tempCart.length > 0) {
-        Modal.confirm({
+        modal.confirm({
           title: '检测到待处理配方',
           content: (
             <div>
@@ -599,7 +621,7 @@ const Cashier = () => {
   // 新增快速添加配方功能
   const handleQuickAddRecipe = async (recipe, member) => {
     // 弹窗输入重量
-    Modal.confirm({
+    modal.confirm({
       title: `添加配方：${recipe.displayName}`,
       content: (
         <div>
@@ -615,7 +637,6 @@ const Cashier = () => {
                 min={50}
                 max={5000}
                 step={50}
-                defaultValue={100}
                 style={{ width: '100%' }}
                 id="recipe-weight-input"
               />
@@ -1437,7 +1458,7 @@ const Cashier = () => {
   // 点击配方
   const handleRecipeClick = (recipe) => {
     setSelectedRecipe(recipe);
-    Modal.confirm({
+    modal.confirm({
       title: `添加配方：${recipe.name}`,
       content: (
         <Form layout="vertical">
@@ -1911,8 +1932,7 @@ const Cashier = () => {
         </Col>
       </Row>
       
-
-      // 生成配方弹窗
+      {/* 生成配方弹窗 */}
       <Modal
         title="生成配方"
         open={generateRecipeVisible}

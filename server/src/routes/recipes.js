@@ -10,6 +10,15 @@ import { logMiddleware } from '../utils/operationLog.js';
 import { logger } from '../utils/logger.js';
 
 const router = express.Router();
+const safeRollback = async (transaction) => {
+  if (transaction && !transaction.finished) {
+    try {
+      await transaction.rollback();
+    } catch (error) {
+      logger.error('回滚事务失败:', error);
+    }
+  }
+};
 
 // 所有接口都需要认证
 router.use(authenticate);
@@ -122,7 +131,7 @@ router.post('/', logMiddleware('配方管理', '创建配方'), async (req, res)
     for (const item of materials) {
       await RecipeProduct.create({
         recipeId: recipe.id,
-        productId: item.productId,  // 注意这里改为 productId
+        productId: item.productId,
         percentage: item.percentage,
         amount: (recipe.totalWeight * item.percentage / 100).toFixed(2)
       }, { transaction: t });
@@ -133,8 +142,8 @@ router.post('/', logMiddleware('配方管理', '创建配方'), async (req, res)
     // 获取完整配方信息
     const fullRecipe = await Recipe.findByPk(recipe.id, {
       include: [{
-        model: Material,
-        as: 'materials',
+        model: Product,  // 注意这里应该是 Product 而不是 Material
+        as: 'products',
         through: { attributes: ['percentage', 'amount'] }
       }]
     });
@@ -145,7 +154,7 @@ router.post('/', logMiddleware('配方管理', '创建配方'), async (req, res)
       message: '配方创建成功'
     });
   } catch (error) {
-    await t.rollback();
+    await safeRollback(t);
     logger.error('创建配方失败:', error);
     res.status(500).json({ 
       success: false,

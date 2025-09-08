@@ -1,7 +1,7 @@
 /**
  * 前端单位换算工具
  */
-export class UnitConverter {
+class UnitConverter {
   // 单位到克的换算表
   static unitToGram = {
     'g': 1,
@@ -50,3 +50,6 @@ export class UnitConverter {
     return `相当于 ${formatted} ${targetUnit}`;
   }
 }
+
+export { UnitConverter };  // 改为具名导出
+export default UnitConverter;  // 同时保留默认导出

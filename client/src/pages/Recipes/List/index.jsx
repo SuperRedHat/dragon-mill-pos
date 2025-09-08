@@ -23,7 +23,11 @@ import {
   Progress,
   Divider,
   AutoComplete,
-  message as antMessage
+  message as antMessage,
+  Radio,
+  Badge,
+  Tooltip,
+  Spin     
 } from 'antd';
 import {
   PlusOutlined,
@@ -35,7 +39,10 @@ import {
   GlobalOutlined,
   FileTextOutlined,
   ExperimentOutlined,
-  PercentageOutlined
+  PercentageOutlined,
+  ShoppingCartOutlined,
+  ClockCircleOutlined,
+  QuestionCircleOutlined
 } from '@ant-design/icons';
 import {
   getRecipeList,
@@ -45,12 +52,19 @@ import {
   copyRecipe,
   calculateRecipePrice
 } from '@/api/recipes';
+import { createRecipe as apiCreateRecipe } from '@/api/recipes';
 import CartManager from '@/utils/cartManager';
 import { useNavigate } from 'react-router-dom';
 
-import { UnitConverter } from '@/utils/unitConverter';
+
 import { getProductList } from '@/api/products';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+import 'dayjs/locale/zh-cn';
 import './index.scss';
+
+dayjs.extend(relativeTime);
+dayjs.locale('zh-cn');
 
 const { Option } = Select;
 const { TextArea } = Input;

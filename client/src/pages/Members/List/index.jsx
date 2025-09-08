@@ -46,6 +46,7 @@ const MemberList = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [searchParams, setSearchParams] = useState({});
+  const [memberRecipes, setMemberRecipes] = useState([]);
   
   const [memberModalVisible, setMemberModalVisible] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
@@ -183,26 +184,6 @@ const MemberList = () => {
       fetchMembers();
     } catch (error) {
       // 错误已在请求拦截器中处理
-    }
-  };
-
-  // 查看会员详情
-  const handleViewDetail = async (member) => {
-    setCurrentMember(member);
-    setDetailDrawerVisible(true);
-    
-    // 获取消费记录
-    try {
-      const res = await getOrderList({
-        memberId: member.id,
-        page: 1,
-        pageSize: 10
-      });
-      if (res.success) {
-        setMemberOrders(res.data.list);
-      }
-    } catch (error) {
-      console.error('获取消费记录失败');
     }
   };
 
