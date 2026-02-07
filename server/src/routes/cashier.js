@@ -13,24 +13,9 @@ import { logger } from '../utils/logger.js';
 import Recipe from '../models/Recipe.js';
 import RecipeProduct from '../models/RecipeProduct.js';
 import UnitConverter from '../utils/unitConverter.js';
+import { generateOrderNo } from '../utils/orderNo.js';
 
 const router = express.Router();
-
-// 所有接口都需要认证
-router.use(authenticate);
-
-// 生成订单号
-const generateOrderNo = () => {
-  const date = new Date();
-  const year = date.getFullYear();
-  const month = (date.getMonth() + 1).toString().padStart(2, '0');
-  const day = date.getDate().toString().padStart(2, '0');
-  const hour = date.getHours().toString().padStart(2, '0');
-  const minute = date.getMinutes().toString().padStart(2, '0');
-  const second = date.getSeconds().toString().padStart(2, '0');
-  const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-  return `${year}${month}${day}${hour}${minute}${second}${random}`;
-};
 
 // 获取配方用于收银
 router.get('/recipes/for-sale', async (req, res) => {
@@ -151,33 +136,33 @@ router.post('/checkout', async (req, res) => {
     
     let member = null;
     let memberPoints = 0;
-    
+
     // 如果有会员ID，查找会员信息
     if (memberId) {
       member = await Member.findByPk(memberId, { transaction: t });
       if (!member) {
         await t.rollback();
-        return res.status(404).json({ 
+        return res.status(404).json({
           success: false,
-          error: '会员不存在' 
+          error: '会员不存在'
         });
       }
       memberPoints = member.points;
-      
+
       // 检查积分是否足够
       if (pointsUsed > memberPoints) {
         await t.rollback();
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
-          error: '积分余额不足' 
+          error: '积分余额不足'
         });
       }
     }
-    
+
     // 计算订单金额
     let totalAmount = 0;
     const orderItems = [];
-    const orderNo = generateOrderNo();
+    let orderNo = generateOrderNo();
     const pendingRecipeUsageLogs = [];
     
     // 处理普通商品
@@ -193,20 +178,11 @@ router.post('/checkout', async (req, res) => {
           });
         }
         
-        // 检查库存
-        if (product.stock < item.quantity) {
-          await t.rollback();
-          return res.status(400).json({ 
-            success: false,
-            error: `商品库存不足: ${product.name}` 
-          });
-        }
-        
         // 计算价格（会员价或普通价）
         const price = (member && product.memberPrice) ? product.memberPrice : product.price;
         const subtotal = price * item.quantity;
         totalAmount += subtotal;
-        
+
         orderItems.push({
           productId: product.id,
           productName: product.name,
@@ -215,18 +191,29 @@ router.post('/checkout', async (req, res) => {
           subtotal,
           unit: product.unit
         });
-        
-        // 扣减库存
-        const beforeStock = product.stock;
-        const afterStock = beforeStock - item.quantity;
-        
-        await product.update({ stock: afterStock }, { transaction: t });
-        
+
+        // 原子扣减库存（防止并发超卖）
+        const qty = Number(item.quantity);
+        const [deducted] = await Product.update(
+          { stock: sequelize.literal(`stock - ${qty}`) },
+          { where: { id: product.id, stock: { [Op.gte]: qty } }, transaction: t }
+        );
+        if (deducted === 0) {
+          await t.rollback();
+          return res.status(400).json({
+            success: false,
+            error: `商品库存不足: ${product.name}`
+          });
+        }
+        await product.reload({ transaction: t });
+        const afterStock = parseFloat(product.stock);
+        const beforeStock = afterStock + qty;
+
         // 记录库存变动
         await StockRecord.create({
           productId: product.id,
           type: 'sale',
-          quantity: -item.quantity,
+          quantity: -qty,
           beforeStock,
           afterStock,
           remark: `销售出库，订单号: ${orderNo}`,
@@ -292,27 +279,28 @@ router.post('/checkout', async (req, res) => {
           // 单位换算
           const stockDeduction = UnitConverter.fromGram(materialWeight, product.unit);
           
-          if (product.stock < stockDeduction) {
+          // 原子扣减库存（防止并发超卖）
+          const deductQty = Number(stockDeduction);
+          const [matDeducted] = await Product.update(
+            { stock: sequelize.literal(`stock - ${deductQty}`) },
+            { where: { id: product.id, stock: { [Op.gte]: deductQty } }, transaction: t }
+          );
+          if (matDeducted === 0) {
             await t.rollback();
-            return res.status(400).json({ 
+            return res.status(400).json({
               success: false,
-              error: `商品库存不足: ${product.name}，需要${UnitConverter.format(stockDeduction, product.unit)}${product.unit}，当前库存${product.stock}${product.unit}` 
+              error: `商品库存不足: ${product.name}，需要${UnitConverter.format(stockDeduction, product.unit)}${product.unit}`
             });
           }
-          
-          // 扣减库存
-          const beforeStock = product.stock;
-          const afterStock = beforeStock - stockDeduction;
-          
-          await product.update({
-            stock: afterStock
-          }, { transaction: t });
-          
+          await product.reload({ transaction: t });
+          const afterStock = parseFloat(product.stock);
+          const beforeStock = afterStock + deductQty;
+
           // 记录库存变动
           await StockRecord.create({
             productId: product.id,
             type: 'sale',
-            quantity: -stockDeduction,
+            quantity: -deductQty,
             beforeStock,
             afterStock,
             remark: `配方使用：${recipe.name} (${recipeItem.weight}g)`,
@@ -388,20 +376,32 @@ router.post('/checkout', async (req, res) => {
     // 计算获得积分（假设消费1元获得1积分）
     const pointsEarned = Math.floor(actualAmount);
     
-    // 创建订单
-    const order = await Order.create({
-      orderNo,
-      memberId: member?.id,
-      userId: req.user.id,
-      totalAmount,
-      discountAmount,
-      actualAmount,
-      paymentMethod,
-      pointsEarned,
-      pointsUsed,
-      status: 'completed',
-      remark
-    }, { transaction: t });
+    // 创建订单（唯一约束冲突时重试，最多 3 次）
+    let order;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        order = await Order.create({
+          orderNo,
+          memberId: member?.id,
+          userId: req.user.id,
+          totalAmount,
+          discountAmount,
+          actualAmount,
+          paymentMethod,
+          pointsEarned,
+          pointsUsed,
+          status: 'completed',
+          remark
+        }, { transaction: t });
+        break;
+      } catch (err) {
+        if (err.name === 'SequelizeUniqueConstraintError' && attempt < 3) {
+          orderNo = generateOrderNo();
+          continue;
+        }
+        throw err;
+      }
+    }
     
     // 创建订单明细
     for (const item of orderItems) {

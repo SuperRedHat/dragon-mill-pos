@@ -178,19 +178,22 @@ router.post('/:id/refund', authorize('admin'), async (req, res) => {
           return res.status(400).json({ error: '商品已退货' });
         }
         
-        // 恢复库存
+        // 原子恢复库存
         const product = await Product.findByPk(orderItem.productId, { transaction: t });
         if (product) {
-          const beforeStock = product.stock;
-          const afterStock = beforeStock + orderItem.quantity;
-          
-          await product.update({ stock: afterStock }, { transaction: t });
-          
-          // 记录库存变动
+          const restoreQty = Number(orderItem.quantity);
+          await Product.update(
+            { stock: sequelize.literal(`stock + ${restoreQty}`) },
+            { where: { id: product.id }, transaction: t }
+          );
+          await product.reload({ transaction: t });
+          const afterStock = parseFloat(product.stock);
+          const beforeStock = afterStock - restoreQty;
+
           await StockRecord.create({
             productId: product.id,
             type: 'adjust',
-            quantity: orderItem.quantity,
+            quantity: restoreQty,
             beforeStock,
             afterStock,
             remark: `退货入库，订单号: ${order.orderNo}`,
@@ -217,19 +220,22 @@ router.post('/:id/refund', authorize('admin'), async (req, res) => {
       // 全单退货
       for (const item of order.items) {
         if (!item.isRefunded) {
-          // 恢复库存
+          // 原子恢复库存
           const product = await Product.findByPk(item.productId, { transaction: t });
           if (product) {
-            const beforeStock = product.stock;
-            const afterStock = beforeStock + item.quantity;
-            
-            await product.update({ stock: afterStock }, { transaction: t });
-            
-            // 记录库存变动
+            const restoreQty = Number(item.quantity);
+            await Product.update(
+              { stock: sequelize.literal(`stock + ${restoreQty}`) },
+              { where: { id: product.id }, transaction: t }
+            );
+            await product.reload({ transaction: t });
+            const afterStock = parseFloat(product.stock);
+            const beforeStock = afterStock - restoreQty;
+
             await StockRecord.create({
               productId: product.id,
               type: 'adjust',
-              quantity: item.quantity,
+              quantity: restoreQty,
               beforeStock,
               afterStock,
               remark: `退货入库，订单号: ${order.orderNo}`,

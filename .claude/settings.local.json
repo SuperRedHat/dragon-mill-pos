@@ -7,7 +7,11 @@
       "Bash(node --experimental-vm-modules node_modules/jest/bin/jest.js:*)",
       "Bash(git status:*)",
       "Bash(NODE_ENV=test JWT_SECRET=test-jwt-secret-for-p03 node:*)",
-      "Bash(NODE_ENV=test JWT_SECRET=test-jwt-secret node:*)"
+      "Bash(NODE_ENV=test JWT_SECRET=test-jwt-secret node:*)",
+      "Bash(node --experimental-vm-modules node_modules/.bin/jest:*)",
+      "Bash(npx --node-options=\"--experimental-vm-modules\" jest:*)",
+      "Bash(npx:*)",
+      "Bash(npm ls:*)"
     ]
   }
 }

@@ -1,5 +1,6 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
+import rateLimit from 'express-rate-limit';
 import User from '../models/User.js';
 import { authenticate } from '../middleware/auth.js';
 import { logger } from '../utils/logger.js';
@@ -7,8 +8,22 @@ import { logOperation } from '../utils/operationLog.js';
 
 const router = express.Router();
 
+// P1-4: 登录专用限流 — 5 次/15分钟/IP，防暴力破解
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (_req, res) => {
+    res.status(429).json({
+      success: false,
+      error: '登录尝试过于频繁，请15分钟后再试'
+    });
+  },
+});
+
 // 登录
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   try {
     const { username, password } = req.body;
 

@@ -27,7 +27,7 @@ describe('cashier checkout flow — source-level regression', () => {
 
   it('should generate orderNo before the processing loops', () => {
     // orderNo must be defined before any stock record remark or Order.create references it
-    const orderNoDeclPos = cashierSource.indexOf('const orderNo = generateOrderNo()');
+    const orderNoDeclPos = cashierSource.indexOf('let orderNo = generateOrderNo()');
     const stockRemarkPos = cashierSource.indexOf('销售出库，订单号:');
     const orderCreatePos = cashierSource.indexOf('orderNo,', cashierSource.indexOf('Order.create'));
 

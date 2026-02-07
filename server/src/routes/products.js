@@ -3,6 +3,7 @@ import { Op } from 'sequelize';
 import { sequelize } from '../config/database.js';
 import Product from '../models/Product.js';
 import ProductCategory from '../models/ProductCategory.js';
+import OrderItem from '../models/OrderItem.js';
 import StockRecord from '../models/StockRecord.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { logMiddleware } from '../utils/operationLog.js';
@@ -236,27 +237,28 @@ router.post('/batch-replenish', authorize('admin'), logMiddleware('库存管理'
           continue;
         }
         
-        // 更新库存
-        const beforeStock = product.stock;
-        const afterStock = beforeStock + quantity;
-        
-        await product.update(
-          { stock: afterStock },
-          { transaction: t }
+        // 原子增加库存
+        const addQty = Number(quantity);
+        await Product.update(
+          { stock: sequelize.literal(`stock + ${addQty}`) },
+          { where: { id: productId }, transaction: t }
         );
-        
+        await product.reload({ transaction: t });
+        const afterStock = parseFloat(product.stock);
+        const beforeStock = afterStock - addQty;
+
         // 记录库存变动
         await StockRecord.create({
           productId: product.id,
           type: 'purchase',
-          quantity: quantity,
+          quantity: addQty,
           beforeStock,
           afterStock,
           remark: `批量补货${remark ? ': ' + remark : ''}`,
           operatorId: req.user.id,
           operatorName: req.user.name
         }, { transaction: t });
-        
+
         results.push({
           productId: product.id,
           productName: product.name,
@@ -639,9 +641,16 @@ router.delete('/:id', authorize('admin'), logMiddleware('商品管理', '删除�
     if (!product) {
       return res.status(404).json({ error: '商品不存在' });
     }
-    
-    // TODO: 检查是否有相关订单，有则不允许删除
-    
+
+    // P1-5: 存在订单引用时拒绝删除
+    const refCount = await OrderItem.count({ where: { productId: product.id } });
+    if (refCount > 0) {
+      return res.status(400).json({
+        success: false,
+        error: `该商品已关联 ${refCount} 条订单记录，无法删除`
+      });
+    }
+
     await product.destroy();
     
     res.json({
@@ -682,65 +691,80 @@ router.post('/:id/image', authorize('admin'), upload.single('image'), async (req
 
 // 库存调整（仅管理员）
 router.post('/:id/stock', authorize('admin'), logMiddleware('库存管理', '调整库存'), async (req, res) => {
+  const t = await sequelize.transaction();
   try {
     const { type, quantity, remark } = req.body;
-    
+
     if (!type || !quantity) {
+      await t.rollback();
       return res.status(400).json({ error: '请选择调整类型和数量' });
     }
-    
-    const product = await Product.findByPk(req.params.id);
+
+    const product = await Product.findByPk(req.params.id, { transaction: t });
     if (!product) {
+      await t.rollback();
       return res.status(404).json({ error: '商品不存在' });
     }
-    
-    const beforeStock = product.stock;
-    let afterStock = beforeStock;
-    
-    // 根据类型计算新库存
+
+    // 计算变化量
+    let delta;
     switch (type) {
-      case 'purchase': // 采购入库
-        afterStock = beforeStock + Math.abs(quantity);
+      case 'purchase':
+        delta = Math.abs(quantity);
         break;
-      case 'adjust': // 库存调整
-        afterStock = beforeStock + quantity;
+      case 'adjust':
+        delta = quantity;
         break;
-      case 'loss': // 报损
-        afterStock = beforeStock - Math.abs(quantity);
+      case 'loss':
+        delta = -Math.abs(quantity);
         break;
       default:
+        await t.rollback();
         return res.status(400).json({ error: '无效的调整类型' });
     }
-    
-    if (afterStock < 0) {
+
+    // 原子更新库存（扣减时检查库存充足）
+    let updated;
+    if (delta < 0) {
+      [updated] = await Product.update(
+        { stock: sequelize.literal(`stock + (${delta})`) },
+        { where: { id: product.id, stock: { [Op.gte]: Math.abs(delta) } }, transaction: t }
+      );
+    } else {
+      [updated] = await Product.update(
+        { stock: sequelize.literal(`stock + ${delta}`) },
+        { where: { id: product.id }, transaction: t }
+      );
+    }
+    if (updated === 0) {
+      await t.rollback();
       return res.status(400).json({ error: '库存不能为负数' });
     }
-    
-    // 更新库存
-    await product.update({ stock: afterStock });
-    
+
+    await product.reload({ transaction: t });
+    const afterStock = parseFloat(product.stock);
+    const beforeStock = afterStock - delta;
+
     // 记录库存变动
     await StockRecord.create({
       productId: product.id,
       type,
-      quantity: type === 'loss' ? -Math.abs(quantity) : quantity,
+      quantity: delta,
       beforeStock,
       afterStock,
       remark,
       operatorId: req.user.id,
       operatorName: req.user.name
-    });
-    
+    }, { transaction: t });
+
+    await t.commit();
     res.json({
       success: true,
-      data: {
-        beforeStock,
-        afterStock,
-        change: afterStock - beforeStock
-      },
+      data: { beforeStock, afterStock, change: delta },
       message: '库存调整成功'
     });
   } catch (error) {
+    await t.rollback();
     logger.error('库存调整失败:', error);
     res.status(500).json({ error: '库存调整失败' });
   }
