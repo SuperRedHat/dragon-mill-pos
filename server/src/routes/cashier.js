@@ -1,5 +1,5 @@
 import express from 'express';
-import { Op } from 'sequelize';
+import { Op, QueryTypes } from 'sequelize';
 import { sequelize } from '../config/database.js';
 import Order from '../models/Order.js';
 import OrderItem from '../models/OrderItem.js';
@@ -177,6 +177,8 @@ router.post('/checkout', async (req, res) => {
     // 计算订单金额
     let totalAmount = 0;
     const orderItems = [];
+    const orderNo = generateOrderNo();
+    const pendingRecipeUsageLogs = [];
     
     // 处理普通商品
     if (items && items.length > 0) {
@@ -227,7 +229,7 @@ router.post('/checkout', async (req, res) => {
           quantity: -item.quantity,
           beforeStock,
           afterStock,
-          remark: `销售出库，订单号: ${generateOrderNo()}`,
+          remark: `销售出库，订单号: ${orderNo}`,
           operatorId: req.user.id,
           operatorName: req.user.name
         }, { transaction: t });
@@ -368,20 +370,13 @@ router.post('/checkout', async (req, res) => {
           lastWeight: recipeItem.weight
         }, { transaction: t });
         
-        // 记录配方使用日志（如果创建了recipe_usage_logs表）
-        try {
-          await sequelize.query(
-            `INSERT INTO recipe_usage_logs (recipe_id, order_id, member_id, weight, price, created_at) 
-            VALUES (?, ?, ?, ?, ?, NOW())`,
-            {
-              replacements: [recipe.id, order.id, member?.id, recipeItem.weight, recipePrice],
-              type: QueryTypes.INSERT,
-              transaction: t
-            }
-          );
-        } catch (error) {
-          logger.warn('记录配方使用日志失败:', error);
-        }
+        // 收集配方使用日志数据（order 尚未创建，延迟到 order 创建后写入）
+        pendingRecipeUsageLogs.push({
+          recipeId: recipe.id,
+          memberId: member?.id,
+          weight: recipeItem.weight,
+          price: recipePrice
+        });
       }
     }
 
@@ -395,7 +390,7 @@ router.post('/checkout', async (req, res) => {
     
     // 创建订单
     const order = await Order.create({
-      orderNo: generateOrderNo(), 
+      orderNo,
       memberId: member?.id,
       userId: req.user.id,
       totalAmount,
@@ -424,6 +419,23 @@ router.post('/checkout', async (req, res) => {
       }, { transaction: t });
     }
     
+    // 写入配方使用日志（order 已创建，order.id 可用）
+    for (const log of pendingRecipeUsageLogs) {
+      try {
+        await sequelize.query(
+          `INSERT INTO recipe_usage_logs (recipe_id, order_id, member_id, weight, price, created_at)
+           VALUES (?, ?, ?, ?, ?, NOW())`,
+          {
+            replacements: [log.recipeId, order.id, log.memberId, log.weight, log.price],
+            type: QueryTypes.INSERT,
+            transaction: t
+          }
+        );
+      } catch (err) {
+        logger.warn('记录配方使用日志失败:', err);
+      }
+    }
+
     // 更新会员积分和消费金额
     if (member) {
       const newPoints = memberPoints - pointsUsed + pointsEarned;

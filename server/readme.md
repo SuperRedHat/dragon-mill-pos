@@ -436,8 +436,8 @@ npm run dev
 # 服务运行在 http://localhost:3001
 
 # 默认账号
-# 管理员: admin / Admin@123456
-# 员工: staff / Staff@123456
+# 管理员: admin / <YOUR_ADMIN_PASSWORD>  (见 DEFAULT_ADMIN_PASSWORD 环境变量)
+# 员工: staff / <YOUR_STAFF_PASSWORD>  (见 DEFAULT_STAFF_PASSWORD 环境变量)
 ```
 
 ### 8.2 新增 API 路由模板

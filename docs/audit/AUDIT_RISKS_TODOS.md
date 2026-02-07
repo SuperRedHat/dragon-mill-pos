@@ -44,10 +44,10 @@
 
 | Item | Detail |
 |------|--------|
-| **现象** | Login page shows `默认管理员账号：admin / Admin@123456` in the UI |
+| **现象** | Login page shows `默认管理员账号：admin / <YOUR_ADMIN_PASSWORD>` in the UI |
 | **影响** | Anyone accessing the login page knows the admin credentials |
 | **根因** | Hardcoded hint text in login component |
-| **证据** | `client/src/pages/Login/index.jsx:82` — `<p>默认管理员账号：admin / Admin@123456</p>` |
+| **证据** | `client/src/pages/Login/index.jsx:82` — `<p>默认管理员账号：admin / <YOUR_ADMIN_PASSWORD></p>` |
 | **最小修复** | Remove the hint text. Wrap it with `import.meta.env.DEV &&` check at minimum: `{import.meta.env.DEV && <p>...</p>}` |
 | **验证** | Build for production (`npm run build`) and check the login page — no credentials should be visible |
 
@@ -184,7 +184,7 @@
 | **影响** | If seed is run in any deployed environment, the staff account is trivially compromised |
 | **根因** | Hardcoded weak password for testing convenience |
 | **证据** | `server/src/database/seed.js:34` — `password: '123456'` |
-| **最小修复** | Use environment variable: `password: process.env.DEFAULT_STAFF_PASSWORD \|\| 'Staff@123456'` |
+| **最小修复** | Use environment variable: `password: process.env.DEFAULT_STAFF_PASSWORD \|\| 'changeme'` |
 | **验证** | Run `npm run db:seed` and check the staff password is not `123456` |
 
 ### P1-9: Token Stored in localStorage (XSS Risk)

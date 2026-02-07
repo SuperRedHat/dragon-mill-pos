@@ -25,7 +25,7 @@ const initDatabase = async () => {
     // 创建默认管理员
     const adminUser = await User.create({
       username: 'admin',
-      password: 'Admin@123456',
+      password: process.env.DEFAULT_ADMIN_PASSWORD || 'changeme',
       name: '系统管理员',
       role: 'admin',
       phone: '13800138000',
@@ -36,7 +36,7 @@ const initDatabase = async () => {
     // 创建测试员工账号
     const staffUser = await User.create({
       username: 'staff',
-      password: 'Staff@123456',
+      password: process.env.DEFAULT_STAFF_PASSWORD || 'changeme',
       name: '测试员工',
       role: 'staff',
       phone: '13800138001',
@@ -429,8 +429,8 @@ const initDatabase = async () => {
 
     logger.info('=================================');
     logger.info('数据库初始化完成！');
-    logger.info('默认管理员账号：admin / Admin@123456');
-    logger.info('测试员工账号：staff / Staff@123456');
+    logger.info('默认管理员账号：admin（密码见 DEFAULT_ADMIN_PASSWORD 环境变量）');
+    logger.info('测试员工账号：staff（密码见 DEFAULT_STAFF_PASSWORD 环境变量）');
     logger.info('=================================');
     
     process.exit(0);

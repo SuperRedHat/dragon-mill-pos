@@ -17,7 +17,7 @@ const seedDatabase = async () => {
     // 创建默认管理员账户
     const admin = await User.create({
       username: 'admin',
-      password: process.env.DEFAULT_ADMIN_PASSWORD || 'Admin@123456',
+      password: process.env.DEFAULT_ADMIN_PASSWORD || 'changeme',
       name: '系统管理员',
       role: 'admin',
       phone: '13800138000',
@@ -32,7 +32,7 @@ const seedDatabase = async () => {
     // 创建测试员工账户
     const staff = await User.create({
       username: 'staff01',
-      password: '123456',
+      password: process.env.DEFAULT_STAFF_PASSWORD || 'changeme',
       name: '测试员工',
       role: 'staff',
       phone: '13800138001',
@@ -57,8 +57,8 @@ const seedDatabase = async () => {
     logger.info('数据库初始化完成');
     logger.info('===================');
     logger.info('默认账号信息：');
-    logger.info('管理员 - 用户名: admin, 密码: Admin@123456');
-    logger.info('员工 - 用户名: staff01, 密码: 123456');
+    logger.info('管理员 - 用户名: admin（密码见 DEFAULT_ADMIN_PASSWORD 环境变量）');
+    logger.info('员工 - 用户名: staff01（密码见 DEFAULT_STAFF_PASSWORD 环境变量）');
     logger.info('===================');
     
     process.exit(0);

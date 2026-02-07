@@ -78,9 +78,11 @@ const Login = () => {
           </Form.Item>
         </Form>
 
-        <div className="login-footer">
-          <p>默认管理员账号：admin / Admin@123456</p>
-        </div>
+        {import.meta.env.VITE_DEMO_ADMIN_PASSWORD && (
+          <div className="login-footer">
+            <p>演示账号：admin / {import.meta.env.VITE_DEMO_ADMIN_PASSWORD}</p>
+          </div>
+        )}
       </Card>
     </div>
   );

@@ -110,7 +110,7 @@ Volumes: `mysql_data`, `redis_data` (named), `./server/uploads`, `./server/logs`
 | `UPLOAD_DIR` | `uploads` | | Upload directory |
 | `MAX_FILE_SIZE` | `10485760` | | Max upload file size (bytes) |
 | `SYSTEM_NAME` | `神龙磨坊收银管理系统` | | System display name |
-| `DEFAULT_ADMIN_PASSWORD` | `Admin@123456` | **YES** | Default admin password |
+| `DEFAULT_ADMIN_PASSWORD` | `<YOUR_ADMIN_PASSWORD>` | **YES** | Default admin password |
 | `LOG_LEVEL` | `info` | | Winston log level |
 | `LOG_DIR` | `logs` | | Log directory |
 
@@ -175,15 +175,15 @@ npm run db:migrate       # node src/database/migrate.js — NOT IMPLEMENTED (fil
 
 | Username | Password | Role |
 |----------|----------|------|
-| `admin` | `Admin@123456` | admin |
-| `staff` | `Staff@123456` | staff |
+| `admin` | `<YOUR_ADMIN_PASSWORD>` | admin |
+| `staff` | `<YOUR_STAFF_PASSWORD>` | staff |
 
 ### Default Accounts Created by `db:seed`
 
 | Username | Password | Role |
 |----------|----------|------|
-| `admin` | `Admin@123456` | admin |
-| `staff01` | `123456` | staff |
+| `admin` | `<YOUR_ADMIN_PASSWORD>` | admin |
+| `staff01` | `<YOUR_STAFF_PASSWORD>` | staff |
 
 ---
 

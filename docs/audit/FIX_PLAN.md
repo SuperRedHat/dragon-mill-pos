@@ -150,7 +150,7 @@ node -e "
 # 准备: 获取 token
 TOKEN=$(curl -s -X POST http://localhost:3001/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"Admin@123456"}' | node -e "process.stdin.on('data',d=>console.log(JSON.parse(d).data.token))")
+  -d '{"username":"admin","password":"<YOUR_ADMIN_PASSWORD>"}' | node -e "process.stdin.on('data',d=>console.log(JSON.parse(d).data.token))")
 
 # 修复前（应返回 500）:
 curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:3001/api/v1/recipes/1/copy \
@@ -173,34 +173,37 @@ curl -s -X POST http://localhost:3001/api/v1/recipes/1/copy \
 
 ## P0-4: Default Admin Password Displayed on Login Page
 
-**问题**: 生产环境登录页明文显示 `admin / Admin@123456`。
+> **STATUS: FIXED** (2026-02-07)
 
-**影响范围**:
-- `client/src/pages/Login/index.jsx:82`
+**问题**: 生产环境登录页明文显示默认管理员密码。
 
-**具体改动点**:
+**修复范围（全仓库清理）**:
 
-| 文件 | 行号 | 改动 |
+| 类别 | 文件 | 改动 |
 |------|------|------|
-| `client/src/pages/Login/index.jsx:82` | 条件渲染 | `<p>默认管理员账号：admin / Admin@123456</p>` → `{import.meta.env.DEV && <p>默认管理员账号：admin / Admin@123456</p>}` |
+| **前端** | `client/src/pages/Login/index.jsx:82` | 密码改为仅当 `VITE_DEMO_ADMIN_PASSWORD` 环境变量存在时才显示，缺省为空不渲染 |
+| **种子脚本** | `server/src/database/init.js:28,39,432,433` | 硬编码密码 → `process.env.DEFAULT_ADMIN_PASSWORD \|\| 'changeme'`；日志不再泄露密码 |
+| **种子脚本** | `server/src/database/seed.js:20,35,60,61` | 同上，staff 密码 `'123456'` → env var |
+| **配置模板** | `server/.env.example:27` | `=<YOUR_ADMIN_PASSWORD>` 占位符 |
+| **SQL** | `database/init.sql:26` | 注释移除密码 |
+| **文档** | `server/readme.md`, `docs/audit/` 全部 5 文件 | 所有明文密码替换为 `<YOUR_ADMIN_PASSWORD>` 占位符 |
 
 **验证步骤**:
 ```bash
-# 验证 1: 生产构建不包含密码字符串
-cd client
-npm run build
-grep -r "Admin@123456" dist/
-# 预期: 无输出（未找到）
+# 1. 全仓库搜索（应仅在本 FIX_PLAN 描述段出现占位符，不再有明文密码）
+rg "Admin@123456" .
+# 预期: 无输出
 
-# 验证 2: 开发模式仍然显示（方便开发）
-npm run dev &
-sleep 3
-curl -s http://localhost:5173 | grep -o "Admin@123456" | head -1
-# 预期: Admin@123456（dev 模式可见）
-kill %1
+# 2. Jest 静态测试
+cd server && npm test -- --testPathPattern no-leaked-passwords
+
+# 3. 前端构建无密码泄露
+cd client && npm run build
+rg "Admin@123456" dist/
+# 预期: 无输出
 ```
 
-**风险与回滚**: 仅影响登录页 UI 提示；开发模式仍保留；回滚 = `git checkout client/src/pages/Login/index.jsx`。
+**风险与回滚**: 前端改为环境变量驱动，缺省不显示；种子脚本用 `changeme` 作为安全兜底。
 
 ---
 
@@ -358,7 +361,7 @@ JWT_SECRET=xxx npm run db:init    # force:true 重建，模型已包含新字段
 # 1. 获取 token
 TOKEN=$(curl -s -X POST http://localhost:3001/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"Admin@123456"}' | node -e "process.stdin.on('data',d=>console.log(JSON.parse(d).data.token))")
+  -d '{"username":"admin","password":"<YOUR_ADMIN_PASSWORD>"}' | node -e "process.stdin.on('data',d=>console.log(JSON.parse(d).data.token))")
 
 # 2. 普通商品结账（应返回 200 + 订单数据）
 curl -s -X POST http://localhost:3001/api/v1/cashier/checkout \
@@ -383,11 +386,85 @@ curl -s http://localhost:3001/api/v1/orders/2 \
 # 预期: isRecipe: true recipeDetails: true
 ```
 
-**已知残留问题**（不影响结账，可后续修复）:
-- `cashier.js:377` — `order.id` 在 `order` 创建之前被引用（`recipe_usage_logs` 写入始终失败，被 catch 吞掉）
-- `cashier.js:378` — `QueryTypes` 未导入（同上，ReferenceError 被 catch 吞掉）
+**已知残留问题**: 全部已修复（见 P1-NEW-1/2）。
 
 **风险与回滚**: 迁移仅添加列（`ADD COLUMN`），不改动现有数据；回滚 = `git checkout` 三个文件 + `ALTER TABLE order_items DROP COLUMN recipe_id, DROP COLUMN recipe_details, DROP COLUMN is_recipe`。
+
+---
+
+## P1-NEW-1: Checkout — `order.id` Referenced Before `Order.create()` + Missing `QueryTypes` Import
+
+> **STATUS: FIXED** (2026-02-07)
+
+**问题**: `cashier.js` checkout 端点在处理配方时，`recipe_usage_logs` INSERT 语句在 `Order.create()` 之前执行，导致 `order.id` 为 `undefined`。同时 `QueryTypes` 未导入，`QueryTypes.INSERT` 抛出 `ReferenceError`。两个 bug 叠加导致配方使用日志**始终静默丢失**。
+
+**根因**: recipe_usage_logs INSERT 位于配方处理循环内（在 `Order.create()` 之前），但它需要 `order.id` 作为外键。
+
+**修复改动点**:
+
+| 文件 | 行号 | 改动 |
+|------|------|------|
+| `cashier.js:2` | import | `{ Op }` → `{ Op, QueryTypes }` |
+| `cashier.js:180` | 新增 | `const pendingRecipeUsageLogs = [];` — 在循环前声明收集数组 |
+| `cashier.js:371-384` | 替换 | 将 INSERT 改为收集数据到 `pendingRecipeUsageLogs` |
+| `cashier.js:421` 后 | 新增 | 在 `Order.create()` + `OrderItem.create()` 之后，遍历 `pendingRecipeUsageLogs` 写入 |
+
+**验证步骤**:
+```bash
+# 静态验证 (Jest)
+cd server && npm test -- --testPathPattern cashier-checkout-flow
+
+# 集成验证（需要 MySQL）
+TOKEN=$(curl -s -X POST http://localhost:3001/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"<YOUR_ADMIN_PASSWORD>"}' | node -e "process.stdin.on('data',d=>console.log(JSON.parse(d).data.token))")
+
+curl -s -X POST http://localhost:3001/api/v1/cashier/checkout \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"recipes":[{"recipeId":1,"weight":500,"quantity":1}],"paymentMethod":"cash"}'
+# 预期: 200 + 订单数据
+
+# 验证 recipe_usage_logs 是否写入
+mysql -u dragon_mill -p dragon_mill_pos -e "SELECT * FROM recipe_usage_logs ORDER BY id DESC LIMIT 1;"
+# 预期: 有记录，order_id 非 NULL
+```
+
+---
+
+## P1-NEW-2: Checkout — Stock Record Remark Contains Wrong Order Number
+
+> **STATUS: FIXED** (2026-02-07)
+
+**问题**: `cashier.js:230` 在库存记录的 remark 中调用 `generateOrderNo()` 生成了一个**与实际订单号不同**的随机编号。原因是 `generateOrderNo()` 在 line 230 和 line 398 被调用了两次，每次产生不同的时间戳+随机后缀。
+
+**影响**: 库存变动记录中的"订单号"字段与真实订单号不匹配，导致库存追溯无法关联到正确订单。
+
+**修复改动点**:
+
+| 文件 | 行号 | 改动 |
+|------|------|------|
+| `cashier.js:180` | 新增 | `const orderNo = generateOrderNo();` — 在循环前一次性生成 |
+| `cashier.js:230` | 修改 | `generateOrderNo()` → `orderNo`（引用预生成的变量） |
+| `cashier.js:398` | 修改 | `orderNo: generateOrderNo()` → `orderNo`（引用同一变量） |
+
+**验证步骤**:
+```bash
+# 静态验证 (Jest)
+cd server && npm test -- --testPathPattern cashier-checkout-flow
+
+# 集成验证（需要 MySQL）
+# 结账后检查库存记录的 remark 中的订单号与实际订单号是否一致
+mysql -u dragon_mill -p dragon_mill_pos -e "
+  SELECT o.order_no, sr.remark
+  FROM orders o
+  JOIN order_items oi ON oi.order_id = o.id
+  JOIN stock_records sr ON sr.product_id = oi.product_id
+    AND sr.created_at >= o.created_at
+  ORDER BY o.id DESC LIMIT 5;
+"
+# 预期: remark 中的订单号与 order_no 一致
+```
 
 ---
 
@@ -399,8 +476,10 @@ curl -s http://localhost:3001/api/v1/orders/2 \
 | P0-2 | 同 P0-1 | 同 P0-1 | `curl -w "%{http_code}" GET /api/test/check-dirs` → 404 |
 | P0-3 | 3 (index.js, auth.js middleware, auth.js route) | +3, ~2 | 无 JWT_SECRET 启动 → exit 1；伪造 token → 401 |
 | P0-7 | 1 (recipes.js) | ~4 替换 | `POST /recipes/1/copy` → 200 + 新配方 |
-| P0-4 | 1 (Login/index.jsx) | ~1 | `grep "Admin@123456" client/dist/` → 无输出 |
+| P0-4 | 1 (Login/index.jsx) | ~1 | `grep "<YOUR_ADMIN_PASSWORD>" client/dist/` → 无输出 |
 | P0-8 | 2 (init.js, seed.js) | +6 | `NODE_ENV=production node init.js` → exit 1 |
 | P0-5 | 1 (docker-compose.yml) + 1 (.env.docker) | +3 | `redis-cli PING` → NOAUTH |
 | P0-6 | 1 (docker-compose.yml) + 1 (.env.docker) | ~4 | `grep rootpassword docker-compose.yml` → 空 |
 | P0-9 | 3 (migrate.js 新建, OrderItem.js, cashier.js) | +25, ~5 | `POST /cashier/checkout` 含配方 → 200 + 订单号 |
+| P1-NEW-1 | 1 (cashier.js) | ~15 | `npm test -- cashier-checkout-flow` → 6 pass |
+| P1-NEW-2 | 1 (cashier.js) | ~3 | 同上 |

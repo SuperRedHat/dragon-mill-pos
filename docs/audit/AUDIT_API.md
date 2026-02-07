@@ -318,7 +318,7 @@ app.use('/api/', limiter);
 ```bash
 curl -X POST http://localhost:3001/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"Admin@123456"}'
+  -d '{"username":"admin","password":"<YOUR_ADMIN_PASSWORD>"}'
 ```
 
 Response:

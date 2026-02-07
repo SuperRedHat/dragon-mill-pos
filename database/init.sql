@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS users (
     INDEX idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户表';
 
--- 插入默认管理员账户（密码: Admin@123456）
+-- 插入默认管理员账户（密码由环境变量 DEFAULT_ADMIN_PASSWORD 设置）
 INSERT INTO users (username, password, name, role) VALUES 
 ('admin', '$2a$10$YourHashedPasswordHere', '系统管理员', 'admin');
 

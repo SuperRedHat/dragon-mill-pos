@@ -277,8 +277,8 @@ const sequelize = new Sequelize({
 **Behavior**:
 1. `sequelize.authenticate()` — test connection
 2. `sequelize.sync({ force: true })` — **DROP ALL TABLES and recreate**
-3. Create admin user (`admin` / `Admin@123456`)
-4. Create staff user (`staff` / `Staff@123456`)
+3. Create admin user (`admin` / `<YOUR_ADMIN_PASSWORD>`)
+4. Create staff user (`staff` / `<YOUR_STAFF_PASSWORD>`)
 5. Create 6 product categories
 6. Create 5 regular products + 5 recipe materials
 7. Create 3 test members
@@ -291,8 +291,8 @@ const sequelize = new Sequelize({
 
 **Behavior**:
 1. `sequelize.sync({ force: true })` — **ALSO drops all tables**
-2. Create admin user (`admin` / `Admin@123456` or from env)
-3. Create staff user (`staff01` / `123456`) — **P1: Weak password**
+2. Create admin user (`admin` / `<YOUR_ADMIN_PASSWORD>` or from env)
+3. Create staff user (`staff01` / `<YOUR_STAFF_PASSWORD>`) — password from env var
 4. Create 1 test operation log
 
 **Risk**: Same `force: true` issue. The staff password `123456` is extremely weak.
@@ -318,14 +318,14 @@ Adds fields to existing tables (idempotent — checks before adding):
 
 | Script | Username | Password | Role | Security |
 |--------|----------|----------|------|:--------:|
-| `init.js:27` | admin | Admin@123456 | admin | Moderate |
-| `init.js:38` | staff | Staff@123456 | staff | Moderate |
-| `seed.js:18` | admin | Admin@123456 (or env) | admin | Moderate |
-| `seed.js:33` | staff01 | **123456** | staff | **WEAK** |
+| `init.js:27` | admin | <YOUR_ADMIN_PASSWORD> | admin | Moderate |
+| `init.js:38` | staff | <YOUR_STAFF_PASSWORD> | staff | Moderate |
+| `seed.js:18` | admin | <YOUR_ADMIN_PASSWORD> (or env) | admin | Moderate |
+| `seed.js:33` | staff01 | `<YOUR_STAFF_PASSWORD>` (env var) | staff | Fixed |
 
 The login page at `client/src/pages/Login/index.jsx:82` displays:
 ```
-默认管理员账号：admin / Admin@123456
+默认管理员账号：admin / <YOUR_ADMIN_PASSWORD>
 ```
 
 ---
