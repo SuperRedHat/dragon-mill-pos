@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "test": "jest",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "db:init": "node src/database/init.js", 
     "db:migrate": "node src/database/migrate.js",
     "db:seed": "node src/database/seed.js"

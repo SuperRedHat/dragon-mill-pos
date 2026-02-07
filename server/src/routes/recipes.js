@@ -201,7 +201,7 @@ router.put('/:id', logMiddleware('配方管理', '更新配方'), async (req, re
       for (const material of materials) {
         await RecipeProduct.create({
           recipeId: recipe.id,
-          materialId: material.materialId,
+          productId: material.productId,
           percentage: material.percentage,
           amount: (recipe.totalWeight * material.percentage / 100).toFixed(2)
         }, { transaction: t });
@@ -232,8 +232,8 @@ router.post('/:id/copy', async (req, res) => {
   try {
     const sourceRecipe = await Recipe.findByPk(req.params.id, {
       include: [{
-        model: Material,
-        as: 'materials',
+        model: Product,
+        as: 'products',
         through: { attributes: ['percentage'] }
       }]
     });
@@ -258,10 +258,10 @@ router.post('/:id/copy', async (req, res) => {
     }, { transaction: t });
     
     // 复制材料
-    for (const material of sourceRecipe.materials) {
+    for (const material of sourceRecipe.products) {
       await RecipeProduct.create({
         recipeId: newRecipe.id,
-        materialId: material.id,
+        productId: material.id,
         percentage: material.RecipeProduct.percentage,
         amount: (newRecipe.totalWeight * material.RecipeProduct.percentage / 100).toFixed(2)
       }, { transaction: t });

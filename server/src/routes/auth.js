@@ -50,7 +50,7 @@ router.post('/login', async (req, res) => {
     // 生成 token
     const token = jwt.sign(
       { id: user.id, username: user.username, role: user.role },
-      process.env.JWT_SECRET || 'your-secret-key',
+      process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );
 

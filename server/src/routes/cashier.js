@@ -417,7 +417,10 @@ router.post('/checkout', async (req, res) => {
         price: item.price,
         quantity: item.quantity,
         subtotal: item.subtotal,
-        unit: item.unit
+        unit: item.unit,
+        isRecipe: item.isRecipe || false,
+        recipeId: item.recipeId || null,
+        recipeDetails: item.recipeDetails || null
       }, { transaction: t });
     }
     

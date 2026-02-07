@@ -50,8 +50,15 @@ const OrderItem = sequelize.define('OrderItem', {
       return value ? parseFloat(value) : 0;
     }
   },
+  recipeId: {
+    type: DataTypes.INTEGER,
+    field: 'recipe_id',
+    defaultValue: null,
+    comment: '配方ID（如果是配方项）'
+  },
   recipeDetails: {
     type: DataTypes.JSON,
+    field: 'recipe_details',
     comment: '配方详情（材料明细等）',
     defaultValue: null
   },
