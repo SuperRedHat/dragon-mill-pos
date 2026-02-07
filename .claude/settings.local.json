@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la \"D:\\\\project\\\\managesys\\\\dragon-mill-pos\\\\docs\"\" 2>&1 || echo \"docs directory does not exist \")",
+      "Bash(git check-ignore:*)"
+    ]
+  }
+}
